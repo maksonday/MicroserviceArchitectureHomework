@@ -29,4 +29,5 @@ curl -v localhost:8000/health
 < Content-Length: 0
 < 
 * Connection #0 to host localhost left intact
+{"status":"OK"}
 ```
