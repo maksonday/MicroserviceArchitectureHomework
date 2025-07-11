@@ -18,6 +18,7 @@ kubectl apply -f .
 
 ```bash
 curl http://arch.homework/health
+curl http://arch.homework/otusapp/maximagafonov/health # тестим rewrite пути
 ```
 
 ## Пример ответа ##
