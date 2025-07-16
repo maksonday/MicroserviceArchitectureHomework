@@ -21,12 +21,31 @@ spec:
       labels:
         env: dev
     spec:
+      volumes:
+      - name: config-volume
+        configMap:
+          name: kuber-cm
+          items:
+          - key: app-config
+            path: miniapp.conf
+      - name: postgres-secret
+        secret:
+          secretName: kuber-secret
+          items:
+          - key: postgres-password
+            path: postgres_password
       containers:
       - name: kuber-app
         image: maksonday/miniapp:latest
         imagePullPolicy: Always
+        volumeMounts:
+        - name: config-volume
+          mountPath: /usr/local/etc
+        - name: postgres-secret
+          mountPath: "/secret"
+          readOnly: true
         ports:
-        - containerPort: 8000  
+        - containerPort: 8000
         readinessProbe:
           httpGet:
             path: /health

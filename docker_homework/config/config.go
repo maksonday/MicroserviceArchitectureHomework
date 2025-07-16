@@ -26,6 +26,7 @@ type DBConfig struct {
 	User     string `toml:"user"`
 	Password string `toml:"password"`
 	Database string `toml:"database"`
+	SSLMode  string `toml:"sslmode"`
 }
 
 type Config struct {
@@ -38,10 +39,12 @@ type Config struct {
 
 func NewConfig() *Config {
 	return &Config{
-		ListenPort:   "8000",
-		LogLevel:     "info",
-		LogFile:      "stdout",
-		DBConfig:     &DBConfig{},
+		ListenPort: "8000",
+		LogLevel:   "info",
+		LogFile:    "stdout",
+		DBConfig: &DBConfig{
+			Port: 5432,
+		},
 		ServerConfig: NewServerConfig(),
 	}
 }

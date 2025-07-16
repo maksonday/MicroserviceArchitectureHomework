@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -21,7 +22,7 @@ var (
 )
 
 func GetUser(id int64) (*types.User, error) {
-	rows, err := GetConn().Query(`select username, firstname, lastname, phone, email from users where id = ? LIMIT 1`, id)
+	rows, err := GetConn().Query(`select username, firstname, lastname, phone, email from users where id = $1 LIMIT 1`, id)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
@@ -47,18 +48,8 @@ func GetUser(id int64) (*types.User, error) {
 }
 
 func DeleteUser(id int64) error {
-	res, err := GetConn().Exec(`delete from users where id = ?`, id)
-	if err != nil {
+	if _, err := GetConn().Exec(`delete from users where id = $1`, id); err != nil {
 		return fmt.Errorf("delete user: %w", err)
-	}
-
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("delete user: rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return ErrNoUser
 	}
 
 	return nil
@@ -69,13 +60,18 @@ func CreateUser(user *types.User) (int64, error) {
 		return 0, err
 	}
 
-	res, err := GetConn().Exec(`insert into users(username, firstname, lastname, email, phone) values(?, ?, ?, ?, ?)`,
+	res := GetConn().QueryRow(`insert into users(username, firstname, lastname, email, phone) values($1, $2, $3, $4, $5) returning id`,
 		user.Username, user.FirstName, user.LastName, user.Email, user.Phone)
-	if err != nil {
+
+	var id int64
+	if err := res.Scan(&id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, fmt.Errorf("create user: no rows returned")
+		}
 		return 0, fmt.Errorf("create user: %w", err)
 	}
 
-	return res.LastInsertId()
+	return id, nil
 }
 
 func UpdateUser(user *types.User) error {
@@ -83,19 +79,9 @@ func UpdateUser(user *types.User) error {
 		return err
 	}
 
-	res, err := GetConn().Exec(`update users set firstname = ?, lastname = ?, email = ?, phone = ? where id = ?`,
-		user.FirstName, user.LastName, user.Email, user.Phone, user.Id)
-	if err != nil {
+	if _, err := GetConn().Exec(`update users set username = $1, firstname = $2, lastname = $3, email = $4, phone = $5 where id = $6`,
+		user.Username, user.FirstName, user.LastName, user.Email, user.Phone, user.Id); err != nil {
 		return fmt.Errorf("update user: %w", err)
-	}
-
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("update user: rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return ErrNoUser
 	}
 
 	return nil
