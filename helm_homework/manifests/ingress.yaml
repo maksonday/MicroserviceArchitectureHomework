@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+  name: kuber-ingress
+  namespace: miniapp
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: arch.homework
+    http:
+      paths:
+      - path: /(otusapp/\w+/)?(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: kuber-service
+            port:
+              number: 80
