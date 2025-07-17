@@ -23,9 +23,24 @@ cd .. && helm install my-release oci://registry-1.docker.io/bitnamicharts/postgr
 5. Применяем манифесты
 
 ```bash
-cd manifests && kubectl apply -n miniapp -f .
+kubectl apply -n miniapp -f manifests/
 ```
+
+Если появляется ошибка:
+```bash
+Error from server (InternalError): error when creating "manifests/ingress.yaml": Internal error occurred: failed calling webhook "validate.nginx.ingress.kubernetes.io": failed to call webhook: Post "https://ingress-nginx-controller-admission.ingress-nginx.svc:443/networking/v1/ingresses?timeout=10s": service "ingress-nginx-controller-admission" not found
+```
+
+Удаляем вебхук
+
+```bash
+kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
+```
+
+Заново применяем манифесты
 
 # Как протестить #
 
-TODO
+```bash
+newman run users-crud.postman_collection.json
+```
