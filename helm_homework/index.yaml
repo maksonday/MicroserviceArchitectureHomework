@@ -1,0 +1,21 @@
+apiVersion: v1
+entries:
+  users-crud:
+  - apiVersion: v2
+    appVersion: 0.0.1
+    created: "2025-07-24T05:25:48.521431773+05:00"
+    dependencies:
+    - name: postgresql
+      repository: https://charts.bitnami.com/bitnami
+      version: 16.7.19
+    - name: ingress-nginx
+      repository: https://kubernetes.github.io/ingress-nginx/
+      version: 4.13.0
+    description: A Helm chart for Kubernetes
+    digest: 4c7acebe311ac0fd382613ad45f971b0ff20bd8d205eeeb4ba9997fffcaa70a1
+    name: users-crud
+    type: application
+    urls:
+    - users-crud-0.0.1.tgz
+    version: 0.0.1
+generated: "2025-07-24T05:25:48.506813607+05:00"

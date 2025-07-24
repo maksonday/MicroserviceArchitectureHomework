@@ -1,0 +1,47 @@
+1. Application URL is {{ .Values.host }}
+2. Available operations:
+  Healthcheck
+    🔍 GET /health
+    ✅ Expected response: 200 OK
+        { "status": "OK" }
+
+  Create user
+    🔍 POST /user/
+    📤 Payload:
+      {
+        "username": "maksonday",
+        "firstname": "Maksim",
+        "lastname": "Agafonov",
+        "phone": "1234",
+        "email": "1234"
+      }
+
+    ✅ Expected response: 201 Created
+
+  Get user
+    🔍 GET /user/{id}
+    ✅ Expected response: 200 OK
+      {
+        "id": 1,
+        "username": "maksonday",
+        "firstname": "Maksim",
+        "lastname": "Agafonov",
+        "phone": "1234",
+        "email": "1234"
+      }
+
+  Update user
+    🔍 POST /user/{id}
+    📤 Payload:
+      {
+        "username": "maxsonday",
+        "firstname": "Maxim",
+        "lastname": "Agafonov",
+        "phone": "1234",
+        "email": "1234"
+      }
+  ✅ Expected response: 200 OK
+
+  Delete user
+  🔍 DELETE /user/{id}
+  ✅ Expected response: 204 No Content

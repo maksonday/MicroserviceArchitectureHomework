@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "users-crud.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "users-crud.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: {{ .Values.host }}
+    http:
+      paths:
+      - path: {{ .Values.ingress.path | default "/" }}
+        pathType: {{ .Values.ingress.pathType | default "Prefix" }}
+        backend:
+          service:
+            name: {{ include "users-crud.fullname" . }}
+            port:
+              number:  {{ .Values.service.port }}
