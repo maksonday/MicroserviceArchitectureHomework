@@ -10,7 +10,7 @@ data:
     listen-port = "8000"
 
     [db-config]
-    host = "{{ .Release.Name }}-postgresql.miniapp.svc.cluster.local"
+    host = "{{ .Release.Name }}-postgresql.{{ .Release.Namespace }}.svc.cluster.local"
     user = "postgres"
     database = "miniapp"
     sslmode = "disable"

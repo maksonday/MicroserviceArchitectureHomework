@@ -1,3 +1,7 @@
+# Репозиторий с чартом
+
+https://github.com/maksonday/miniapp
+
 # Команды для разворачивания #
 
 1. Открываем порт 8443 для всех нод minikube(нужно для запуска ingress-nginx admission controller)
