@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "users-crud.fullname" . }}-cm
+  namespace: {{ .Release.Namespace }}
+data:
+  app-config: |
+    log-file = "/var/log/miniapp.log"
+    log-level = "info"
+    listen-port = "8000"
+
+    [db-config]
+    host = "{{ .Release.Name }}-postgresql.miniapp.svc.cluster.local"
+    user = "postgres"
+    database = "miniapp"
+    sslmode = "disable"
+    port = 5432

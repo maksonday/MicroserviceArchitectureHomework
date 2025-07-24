@@ -2,18 +2,29 @@ package main
 
 import (
 	"log"
-	"net/http"
+	"miniapp/config"
+	"miniapp/db"
+	"miniapp/logging"
+	"miniapp/service"
+
+	"github.com/BurntSushi/toml"
 )
 
-func main() {
-	s := http.NewServeMux()
-	s.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"OK"}`))
-	})
+const appName = "miniapp"
 
-	if err := http.ListenAndServe(":8000", s); err != nil {
-		log.Fatal(err)
+func main() {
+	config := config.NewConfig()
+	if _, err := toml.DecodeFile("/usr/local/etc/"+appName+".conf", config); err != nil {
+		log.Fatalf("loading config: %s", err)
 	}
+
+	logging.Init(appName, config)
+
+	if err := db.Init(config.DBConfig); err != nil {
+		log.Fatalf("init database: %s", err)
+	}
+
+	server := service.NewServer(config.ServerConfig)
+
+	log.Fatalf("serve: %s", server.ListenAndServe(":"+config.ListenPort))
 }

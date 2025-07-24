@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "users-crud.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "users-crud.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: {{ .Values.service.port }}
+      targetPort: 8000
+  selector:
+    {{- include "users-crud.selectorLabels" . | nindent 4 }}
