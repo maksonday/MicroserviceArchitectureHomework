@@ -14,10 +14,17 @@ sudo iptables -A INPUT -p tcp --dport 8443 -j ACCEPT
 cd manifests && kubectl apply -n miniapp -f secret.yaml
 ```
 
-4. Устанавлиаем чарт
+4. Устанавливаем чарт
 
+* Из локальных файлов
 ```bash
 helm -n miniapp install ./users-crud --generate-name --set postgresql.auth.existingSecret=postgres-secret
+```
+
+* Из репозитория
+```bash
+helm repo add maksonday https://maksonday.github.io/miniapp/
+helm install users-crud --set postgresql.auth.existingSecret=postgres-secret maksonday/users-crud -n minapp
 ```
 
 5. Запускаем тесты
