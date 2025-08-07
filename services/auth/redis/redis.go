@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -19,19 +20,22 @@ type RedisClient struct {
 }
 
 var (
-	Client *RedisClient
+	Client    *RedisClient
+	redisOnce sync.Once
 
 	ErrBadClaim = errors.New("bad claim error")
 )
 
 func Init(config *config.RedisConfig) {
-	Client = &RedisClient{
-		redis: redis.NewClient(&redis.Options{
-			Addr:     config.Addr,
-			Password: getRedisPassword(),
-			DB:       config.DB,
-		}),
-	}
+	redisOnce.Do(func() {
+		Client = &RedisClient{
+			redis: redis.NewClient(&redis.Options{
+				Addr:     config.Addr,
+				Password: getRedisPassword(),
+				DB:       config.DB,
+			}),
+		}
+	})
 }
 
 func getRedisPassword() string {
