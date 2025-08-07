@@ -6,13 +6,17 @@ import (
 	"fmt"
 	"unicode"
 
-	"miniapp/types"
+	"auth/types"
 
 	"github.com/georgysavva/scany/sqlscan"
 	"golang.org/x/crypto/bcrypt"
 )
 
-const maxParamLen = 256
+const (
+	maxParamLen  = 256
+	passwdMinLen = 7
+	encryptCost  = 14
+)
 
 var (
 	ErrNoUser           = errors.New("user not found")
@@ -44,14 +48,6 @@ func GetUserCredentials(username string) (*types.User, error) {
 	return &user, rows.Err()
 }
 
-func DeleteUser(id int64) error {
-	if _, err := GetConn().Exec(`delete from users where id = $1`, id); err != nil {
-		return fmt.Errorf("delete user: %w", err)
-	}
-
-	return nil
-}
-
 func hashPassword(password string) (string, error) {
 	var (
 		hasMinLen  = false
@@ -61,7 +57,7 @@ func hashPassword(password string) (string, error) {
 		hasSpecial = false
 	)
 
-	if len(password) >= 7 {
+	if len(password) >= passwdMinLen {
 		hasMinLen = true
 	}
 
@@ -91,13 +87,8 @@ func hashPassword(password string) (string, error) {
 		return "", errors.New("password must contain at least one special character")
 	}
 
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), encryptCost)
 	return string(bytes), err
-}
-
-func checkPasswordHash(password, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	return err == nil
 }
 
 func checkUserExists(username, email string) error {
@@ -146,19 +137,6 @@ func CreateUser(user *types.User) (int64, error) {
 	}
 
 	return id, nil
-}
-
-func UpdateUser(user *types.User) error {
-	if err := validateUser(user); err != nil {
-		return err
-	}
-
-	if _, err := GetConn().Exec(`update users set username = $1, firstname = $2, lastname = $3, email = $4, phone = $5 where id = $6`,
-		user.Username, user.FirstName, user.LastName, user.Email, user.Phone, user.Id); err != nil {
-		return fmt.Errorf("update user: %w", err)
-	}
-
-	return nil
 }
 
 func validateUser(user *types.User) error {

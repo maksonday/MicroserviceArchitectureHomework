@@ -1,16 +1,17 @@
 package main
 
 import (
+	"auth/config"
+	"auth/db"
+	"auth/logging"
+	"auth/redis"
+	"auth/service"
 	"log"
-	"miniapp/config"
-	"miniapp/db"
-	"miniapp/logging"
-	"miniapp/service"
 
 	"github.com/BurntSushi/toml"
 )
 
-const appName = "miniapp"
+const appName = "auth-service"
 
 func main() {
 	config := config.NewConfig()
@@ -23,6 +24,8 @@ func main() {
 	if err := db.Init(config.DBConfig); err != nil {
 		log.Fatalf("init database: %s", err)
 	}
+
+	redis.Init(config.RedisConfig)
 
 	server := service.NewServer(config.ServerConfig)
 

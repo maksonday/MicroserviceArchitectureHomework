@@ -1,8 +1,8 @@
 package logging
 
 import (
+	"auth/config"
 	"log"
-	"miniapp/config"
 	"time"
 
 	"go.uber.org/zap"

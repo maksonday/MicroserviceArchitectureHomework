@@ -1,9 +1,9 @@
 package db
 
 import (
+	"auth/config"
 	"database/sql"
 	"log"
-	"miniapp/config"
 	"os"
 	"strconv"
 	"sync"
