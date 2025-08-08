@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -30,7 +31,7 @@ func Init(config *config.RedisConfig) {
 	redisOnce.Do(func() {
 		Client = &RedisClient{
 			redis: redis.NewClient(&redis.Options{
-				Addr:     config.Addr,
+				Addr:     config.Host + ":" + strconv.Itoa(config.Port),
 				Password: getRedisPassword(),
 				DB:       config.DB,
 			}),
@@ -39,7 +40,7 @@ func Init(config *config.RedisConfig) {
 }
 
 func getRedisPassword() string {
-	data, err := os.ReadFile("/secret/redis_password")
+	data, err := os.ReadFile("/secret/redis/password")
 	if err != nil {
 		log.Fatalf("failed to read password file: %s", err)
 	}

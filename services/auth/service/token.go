@@ -15,9 +15,9 @@ import (
 var privateKey *rsa.PrivateKey
 
 func init() {
-	data, err := os.ReadFile("/keys/private.pem")
+	data, err := os.ReadFile("/keys/cert.pem")
 	if err != nil {
-		log.Fatalf("failed to read private.pem: %v", err)
+		log.Fatalf("failed to read private key: %v", err)
 	}
 	privateKey, err = jwt.ParseRSAPrivateKeyFromPEM(data)
 	if err != nil {
