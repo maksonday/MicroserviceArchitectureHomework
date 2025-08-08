@@ -30,7 +30,8 @@ type DBConfig struct {
 }
 
 type RedisConfig struct {
-	Addr string `toml:"addr"`
+	Host string `toml:"host"`
+	Port int    `toml:"port"`
 	DB   int    `toml:"db"`
 }
 
@@ -52,7 +53,8 @@ func NewConfig() *Config {
 			Port: 5432,
 		},
 		RedisConfig: &RedisConfig{
-			Addr: "redis:6379",
+			Host: "redis",
+			Port: 6379,
 			DB:   0,
 		},
 		ServerConfig: NewServerConfig(),
