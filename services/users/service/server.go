@@ -1,8 +1,8 @@
 package service
 
 import (
-	"miniapp/config"
 	"strings"
+	"users/config"
 
 	"github.com/valyala/fasthttp"
 )

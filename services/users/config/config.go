@@ -29,12 +29,19 @@ type DBConfig struct {
 	SSLMode  string `toml:"sslmode"`
 }
 
+type RedisConfig struct {
+	Host string `toml:"host"`
+	Port int    `toml:"port"`
+	DB   int    `toml:"db"`
+}
+
 type Config struct {
 	ListenPort   string        `toml:"listen-port"`
 	LogLevel     string        `toml:"log-level"`
 	LogFile      string        `toml:"log-file"`
 	ServerConfig *ServerConfig `toml:"server-config"`
 	DBConfig     *DBConfig     `toml:"db-config"`
+	RedisConfig  *RedisConfig  `toml:"redis-config"`
 }
 
 func NewConfig() *Config {
@@ -44,6 +51,11 @@ func NewConfig() *Config {
 		LogFile:    "stdout",
 		DBConfig: &DBConfig{
 			Port: 5432,
+		},
+		RedisConfig: &RedisConfig{
+			Host: "redis",
+			Port: 6379,
+			DB:   0,
 		},
 		ServerConfig: NewServerConfig(),
 	}

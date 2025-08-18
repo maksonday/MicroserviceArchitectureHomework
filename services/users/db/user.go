@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"miniapp/types"
+	"users/types"
 
 	"github.com/georgysavva/scany/sqlscan"
 )
