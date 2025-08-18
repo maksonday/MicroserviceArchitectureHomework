@@ -32,7 +32,7 @@ func main() {
 		log.Fatalf("init database: %s", err)
 	}
 
-	server := service.NewServer(config.ServerConfig)
+	server := service.NewServer(config)
 
 	log.Fatalf("serve: %s", server.ListenAndServe(":"+config.ListenPort))
 }

@@ -28,7 +28,7 @@ func main() {
 
 	redis.Init(config.RedisConfig)
 
-	server := service.NewServer(config.ServerConfig)
+	server := service.NewServer(config)
 
 	log.Fatalf("serve: %s", server.ListenAndServe(":"+config.ListenPort))
 }

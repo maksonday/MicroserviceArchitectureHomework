@@ -9,11 +9,17 @@ import (
 
 const maxBodySize = 16 << 20 // 16 MB
 
-func NewServer(config *config.ServerConfig) *fasthttp.Server {
+func NewServer(config *config.Config) *fasthttp.Server {
+	basePath := strings.Trim(config.BasePath, "/")
 	s := &fasthttp.Server{
 		Handler: func(ctx *fasthttp.RequestCtx) {
 			parts := strings.Split(strings.Trim(string(ctx.Path()), "/"), "/")
-			switch parts[0] {
+			if len(parts) < 2 || parts[0] != basePath {
+				ctx.Error("not found", fasthttp.StatusNotFound)
+				return
+			}
+
+			switch parts[1] {
 			case "health":
 				healthCheckHandler(ctx)
 			case "refresh":
@@ -30,10 +36,10 @@ func NewServer(config *config.ServerConfig) *fasthttp.Server {
 		},
 
 		MaxRequestBodySize: maxBodySize,
-		ReadTimeout:        config.ReadTimeout,
-		WriteTimeout:       config.WriteTimeout,
-		IdleTimeout:        config.IdleTimeout,
-		Concurrency:        config.Concurrency,
+		ReadTimeout:        config.ServerConfig.ReadTimeout,
+		WriteTimeout:       config.ServerConfig.WriteTimeout,
+		IdleTimeout:        config.ServerConfig.IdleTimeout,
+		Concurrency:        config.ServerConfig.Concurrency,
 	}
 
 	return s
