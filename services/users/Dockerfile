@@ -2,8 +2,9 @@ FROM golang:latest
 
 COPY . .
 
-RUN go build -o miniapp .
+RUN go build -o users .
 
 EXPOSE 8000:8000
 
-CMD ["./miniapp"]
+CMD ["./users"]
+#CMD ["tail", "-f", "/dev/null"]

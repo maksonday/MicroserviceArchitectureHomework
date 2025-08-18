@@ -36,6 +36,8 @@ type RedisConfig struct {
 }
 
 type Config struct {
+	BasePath     string        `toml:"base-path"`
+	AuthAddr     string        `toml:"auth-addr"`
 	ListenPort   string        `toml:"listen-port"`
 	LogLevel     string        `toml:"log-level"`
 	LogFile      string        `toml:"log-file"`
@@ -46,6 +48,8 @@ type Config struct {
 
 func NewConfig() *Config {
 	return &Config{
+		BasePath:   "users",
+		AuthAddr:   "arch.homework",
 		ListenPort: "8000",
 		LogLevel:   "info",
 		LogFile:    "stdout",

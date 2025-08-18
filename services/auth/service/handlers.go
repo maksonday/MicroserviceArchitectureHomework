@@ -169,6 +169,7 @@ func refreshHandler(ctx *fasthttp.RequestCtx) {
 	}
 
 	ctx.SetContentType("application/json")
+	ctx.SetStatusCode(fasthttp.StatusOK)
 	json.NewEncoder(ctx).Encode(map[string]string{
 		"access_token": accessToken,
 	})
@@ -178,4 +179,7 @@ func handleError(ctx *fasthttp.RequestCtx, err error, status int) {
 	ctx.SetStatusCode(status)
 	ctx.SetContentType("application/json")
 	zap.L().Error(err.Error())
+	json.NewEncoder(ctx).Encode(map[string]string{
+		"error": err.Error(),
+	})
 }

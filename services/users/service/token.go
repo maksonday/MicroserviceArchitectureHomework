@@ -16,11 +16,11 @@ var ErrTokenExpired = errors.New("access token expired")
 func init() {
 	data, err := os.ReadFile("/keys/cert.pem.pub")
 	if err != nil {
-		log.Fatalf("failed to read private key: %v", err)
+		log.Fatalf("failed to read public key: %v", err)
 	}
 	publicKey, err = jwt.ParseRSAPublicKeyFromPEM(data)
 	if err != nil {
-		log.Fatalf("invalid private key: %v", err)
+		log.Fatalf("invalid public key: %v", err)
 	}
 }
 
