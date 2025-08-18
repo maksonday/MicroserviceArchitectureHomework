@@ -7,13 +7,14 @@ import (
 	"auth/redis"
 	"auth/service"
 	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 )
 
-const appName = "auth-service"
-
 func main() {
+	appName := filepath.Base(os.Args[0])
 	config := config.NewConfig()
 	if _, err := toml.DecodeFile("/usr/local/etc/"+appName+".conf", config); err != nil {
 		log.Fatalf("loading config: %s", err)
