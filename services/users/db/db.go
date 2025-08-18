@@ -3,10 +3,10 @@ package db
 import (
 	"database/sql"
 	"log"
-	"miniapp/config"
 	"os"
 	"strconv"
 	"sync"
+	"users/config"
 
 	_ "github.com/lib/pq" // PostgreSQL driver
 )
@@ -26,7 +26,7 @@ func getConnStr(config *config.DBConfig) string {
 }
 
 func getPassword() string {
-	data, err := os.ReadFile("/secret/postgres_password")
+	data, err := os.ReadFile("/secret/postgres/password")
 	if err != nil {
 		log.Fatalf("failed to read password file: %s", err)
 	}

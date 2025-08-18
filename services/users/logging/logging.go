@@ -2,8 +2,8 @@ package logging
 
 import (
 	"log"
-	"miniapp/config"
 	"time"
+	"users/config"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

@@ -1,23 +1,26 @@
 package service
 
 import (
-	"context"
-	"crypto/rsa"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
-	"miniapp/db"
-	"miniapp/types"
 	"os"
 	"strconv"
 	"strings"
-	"time"
+	"users/db"
+	"users/redis"
+	"users/types"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/valyala/fasthttp"
 	"go.uber.org/zap"
 )
 
-var publicKey *rsa.PublicKey
+const (
+	blAtKeyPrefix = "bl:at:"
+	blRtKeyPrefix = "bl:rt:"
+)
 
 func init() {
 	data, err := os.ReadFile("/keys/public.pem")
@@ -141,39 +144,30 @@ func AuthMiddleware() fasthttp.RequestHandler {
 			return
 		}
 
-		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (any, error) {
-			return publicKey, nil
-		})
+		accessToken := strings.TrimPrefix(authHeader, "Bearer ")
+		claims, err := parseToken(accessToken)
+		if err != nil {
+			if errors.Is(err, ErrTokenExpired) {
+				ctx.Redirect("/auth/refresh", fasthttp.StatusFound)
+				return
+			}
 
-		if err != nil || !token.Valid {
-			ctx.Redirect("/login", fasthttp.StatusFound)
+			handleError(ctx, fmt.Errorf("failed to parse access-token: %w", err))
 			return
 		}
-
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			ctx.Redirect("/login", fasthttp.StatusFound)
-			return
-		}
-
-		jti := claims["jti"].(string)
 
 		// Проверка в Redis
-		ctxRedis, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		exists, err := db.RedisClient.Exists(ctxRedis, "bl:"+jti).Result()
+		exists, err := redis.Client.CheckTokenBlacklist(blAtKeyPrefix, claims)
 		if err != nil {
 			ctx.Error("redis error", fasthttp.StatusInternalServerError)
 			return
 		}
-		if exists > 0 {
-			ctx.Redirect("/login", fasthttp.StatusFound)
+
+		// Был сделан logout, нужно логиниться заново
+		if exists {
+			ctx.Redirect("/auth/login", fasthttp.StatusFound)
 			return
 		}
 
-		// Авторизация прошла
-		userID := int(claims["user_id"].(int64))
-		ctx.SetUserValue("userID", userID)
 	}
 }

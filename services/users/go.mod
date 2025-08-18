@@ -1,4 +1,4 @@
-module miniapp
+module users
 
 go 1.24.4
 
@@ -18,6 +18,7 @@ require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/georgysavva/scany v1.2.3
 	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/lib/pq v1.10.9
 	github.com/redis/go-redis/v9 v9.11.0
 	go.uber.org/zap v1.27.0

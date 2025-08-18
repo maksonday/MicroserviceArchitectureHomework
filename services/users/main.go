@@ -1,18 +1,26 @@
 package main
 
 import (
+	"fmt"
 	"log"
-	"miniapp/config"
-	"miniapp/db"
-	"miniapp/logging"
-	"miniapp/service"
+	"os"
+	"path/filepath"
+	"users/config"
+	"users/db"
+	"users/logging"
+	"users/service"
 
 	"github.com/BurntSushi/toml"
 )
 
-const appName = "miniapp"
-
 func main() {
+	executablePath, err := os.Executable()
+	if err != nil {
+		fmt.Printf("Error getting executable path: %v\n", err)
+		return
+	}
+
+	appName := filepath.Base(executablePath)
 	config := config.NewConfig()
 	if _, err := toml.DecodeFile("/usr/local/etc/"+appName+".conf", config); err != nil {
 		log.Fatalf("loading config: %s", err)
