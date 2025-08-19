@@ -2,7 +2,8 @@ package service
 
 import (
 	"crypto/rsa"
-	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -13,6 +14,9 @@ import (
 )
 
 var privateKey *rsa.PrivateKey
+
+var ErrTokenInvalid = errors.New("invalid token")
+var ErrTokenExpired = errors.New("access token expired")
 
 func init() {
 	data, err := os.ReadFile("/keys/cert.pem")
@@ -29,7 +33,7 @@ func generateAccessToken(userID int64, username string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":  userID,
 		"jti":      uuid.NewString(),
-		"exp":      time.Now().Add(accessTokenExp),
+		"exp":      float64(time.Now().Add(accessTokenExp).Unix()),
 		"username": username,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
@@ -39,7 +43,7 @@ func generateAccessToken(userID int64, username string) (string, error) {
 func generateRefreshToken(username string) (string, error) {
 	claims := jwt.MapClaims{
 		"jti":      uuid.NewString(),
-		"exp":      time.Now().Add(refreshTokenExp),
+		"exp":      float64(time.Now().Add(refreshTokenExp).Unix()),
 		"username": username,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
@@ -61,20 +65,25 @@ func issueTokens(ctx *fasthttp.RequestCtx, userID int64, username string) error 
 
 	// Set-Cookie
 	ctx.Response.Header.SetCookie(getCookieWithRefreshToken(refreshToken))
-
-	ctx.SetContentType("application/json")
-	return json.NewEncoder(ctx).Encode(map[string]string{
-		"access_token": accessToken,
-	})
+	// Set access token in header
+	ctx.Response.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	return nil
 }
 
 func parseToken(tokenStr string) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (any, error) {
 		// определяется из сертификата
-		return privateKey, nil
+		return privateKey.Public(), nil
 	})
-	if err != nil || !token.Valid {
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, ErrTokenExpired
+		}
 		return nil, err
+	}
+
+	if !token.Valid {
+		return nil, ErrTokenInvalid
 	}
 
 	// достаем claim из refresh-token

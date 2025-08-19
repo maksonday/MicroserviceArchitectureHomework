@@ -8,6 +8,7 @@ import (
 	"users/config"
 	"users/db"
 	"users/logging"
+	"users/redis"
 	"users/service"
 
 	"github.com/BurntSushi/toml"
@@ -31,6 +32,8 @@ func main() {
 	if err := db.Init(config.DBConfig); err != nil {
 		log.Fatalf("init database: %s", err)
 	}
+
+	redis.Init(config.RedisConfig)
 
 	server := service.NewServer(config)
 

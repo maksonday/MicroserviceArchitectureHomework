@@ -12,6 +12,7 @@ import (
 var publicKey *rsa.PublicKey
 
 var ErrTokenExpired = errors.New("access token expired")
+var ErrTokenInvalid = errors.New("invalid token")
 
 func init() {
 	data, err := os.ReadFile("/keys/cert.pem.pub")
@@ -30,11 +31,14 @@ func parseToken(tokenStr string) (jwt.MapClaims, error) {
 		return publicKey, nil
 	})
 	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, ErrTokenExpired
+		}
 		return nil, err
 	}
 
 	if !token.Valid {
-		return nil, ErrTokenExpired
+		return nil, ErrTokenInvalid
 	}
 
 	// достаем claim из refresh-token

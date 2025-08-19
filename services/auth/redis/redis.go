@@ -16,6 +16,8 @@ import (
 
 const timeout = 5 * time.Second
 
+const ErrNil = redis.Nil
+
 type RedisClient struct {
 	redis *redis.Client
 }
@@ -59,12 +61,12 @@ func (client *RedisClient) PutTokenToBlacklist(prefix string, claims jwt.MapClai
 		return ErrBadClaim
 	}
 
-	exp, ok := claims["exp"].(int64)
+	exp, ok := claims["exp"].(float64)
 	if !ok {
 		return ErrBadClaim
 	}
 
-	ttl := time.Until(time.Unix(exp, 0))
+	ttl := time.Until(time.Unix(int64(exp), 0))
 	if ttl <= 0 {
 		ttl = time.Minute * 1
 	}
