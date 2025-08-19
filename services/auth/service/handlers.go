@@ -5,6 +5,7 @@ import (
 	"auth/redis"
 	"auth/types"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -139,7 +140,7 @@ func refreshHandler(ctx *fasthttp.RequestCtx) {
 
 	// проверяем, нет ли refresh-token в блэклисте(из-за logout, например)
 	blacklisted, err := redis.Client.CheckTokenBlacklist(blRtKeyPrefix, claims)
-	if err != nil {
+	if err != nil && !errors.Is(err, redis.ErrNil) {
 		handleError(ctx, fmt.Errorf("failed to check refresh token blacklist: %w", err), fasthttp.StatusUnauthorized)
 		return
 	}
