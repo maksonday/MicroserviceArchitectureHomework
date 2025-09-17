@@ -32,6 +32,16 @@ func handleUser(ctx *fasthttp.RequestCtx, userId int64) {
 	}
 }
 
+// deleteUser godoc
+//
+//	@Summary		delete user
+//	@Description	delete user
+//	@Tags			users
+//	@Success		204	{object}	nil
+//	@Failure		400	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/user/ [delete]
 func deleteUser(ctx *fasthttp.RequestCtx, userId int64) {
 	if err := db.DeleteUser(userId); err != nil {
 		handleError(ctx, err, fasthttp.StatusBadRequest)
@@ -41,6 +51,17 @@ func deleteUser(ctx *fasthttp.RequestCtx, userId int64) {
 	ctx.SetStatusCode(fasthttp.StatusNoContent)
 }
 
+// getUser godoc
+//
+//	@Summary		get user
+//	@Description	get user
+//	@Tags			users
+//	@Produce		json
+//	@Success		200	{object}	types.User
+//	@Failure		400	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/user/ [get]
 func getUser(ctx *fasthttp.RequestCtx, userId int64) {
 	user, err := db.GetUser(userId)
 	if err != nil {
@@ -59,6 +80,17 @@ func getUser(ctx *fasthttp.RequestCtx, userId int64) {
 	ctx.Write(response)
 }
 
+// updateUser godoc
+//
+//	@Summary		update user
+//	@Description	update user
+//	@Tags			users
+//	@Accept			json
+//	@Success		200	{object}	nil
+//	@Failure		400	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/user/ [post]
 func updateUser(ctx *fasthttp.RequestCtx, userId int64) {
 	var user types.User
 	if err := json.Unmarshal(ctx.Request.Body(), &user); err != nil {
@@ -79,7 +111,7 @@ func handleError(ctx *fasthttp.RequestCtx, err error, status int) {
 	ctx.SetStatusCode(status)
 	ctx.SetContentType("application/json")
 	zap.L().Error(err.Error())
-	json.NewEncoder(ctx).Encode(map[string]string{
-		"error": err.Error(),
+	json.NewEncoder(ctx).Encode(types.HTTPError{
+		Error: err.Error(),
 	})
 }

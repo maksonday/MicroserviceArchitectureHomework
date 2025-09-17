@@ -1,0 +1,115 @@
+definitions:
+  types.HTTPError:
+    properties:
+      error:
+        type: string
+    type: object
+  types.RefreshResponse:
+    properties:
+      access_token:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: register user
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+      summary: register user
+      tags:
+      - auth
+  /logout:
+    get:
+      description: logout user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: message":"logged out"}
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+      summary: logout user
+      tags:
+      - auth
+  /refresh:
+    get:
+      description: refresh user tokens
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.RefreshResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+      summary: refresh user tokens
+      tags:
+      - auth
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: register user
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+      summary: register user
+      tags:
+      - auth
+swagger: "2.0"

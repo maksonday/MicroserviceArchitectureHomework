@@ -14,6 +14,13 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+//	@title			Users API
+//	@version		1.0
+//	@description	This is a users service API.
+//	@termsOfService	http://swagger.io/terms/
+
+//	@license.name	Apache 2.0
+
 func main() {
 	executablePath, err := os.Executable()
 	if err != nil {

@@ -27,6 +27,18 @@ func healthCheckHandler(ctx *fasthttp.RequestCtx) {
 	ctx.WriteString(`{"status":"OK"}`)
 }
 
+// register godoc
+//
+//	@Summary		register user
+//	@Description	register user
+//	@Tags			auth
+//	@Accept			json
+//	@Success		200	{object}	nil
+//	@Failure		401	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/register [post]
 func registerHandler(ctx *fasthttp.RequestCtx) {
 	if string(ctx.Method()) != fasthttp.MethodPost {
 		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
@@ -52,6 +64,17 @@ func registerHandler(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+// register godoc
+//
+//	@Summary		register user
+//	@Description	register user
+//	@Tags			auth
+//	@Accept			json
+//	@Success		200	{object}	nil
+//	@Failure		401	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/login [post]
 func loginHandler(ctx *fasthttp.RequestCtx) {
 	if string(ctx.Method()) != fasthttp.MethodPost {
 		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
@@ -83,6 +106,17 @@ func loginHandler(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+// logout godoc
+//
+//	@Summary		logout user
+//	@Description	logout user
+//	@Tags			auth
+//	@Produce 		json
+//	@Success		200	{string}	{"message":"logged out"}
+//	@Failure		401	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/logout [get]
 func logoutHandler(ctx *fasthttp.RequestCtx) {
 	authHeader := string(ctx.Request.Header.Peek("Authorization"))
 	if !strings.HasPrefix(authHeader, "Bearer ") {
@@ -125,6 +159,17 @@ func logoutHandler(ctx *fasthttp.RequestCtx) {
 	ctx.SetBody([]byte(`{"message":"logged out"}`))
 }
 
+// refresh godoc
+//
+//	@Summary		refresh user tokens
+//	@Description	refresh user tokens
+//	@Tags			auth
+//	@Produce 		json
+//	@Success		200	{object}	types.RefreshResponse
+//	@Failure		401	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/refresh [get]
 func refreshHandler(ctx *fasthttp.RequestCtx) {
 	refreshToken := retrieveRefreshTokenFromCtx(ctx)
 	if len(refreshToken) == 0 {
@@ -171,16 +216,14 @@ func refreshHandler(ctx *fasthttp.RequestCtx) {
 
 	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(fasthttp.StatusOK)
-	json.NewEncoder(ctx).Encode(map[string]string{
-		"access_token": accessToken,
-	})
+	json.NewEncoder(ctx).Encode(types.RefreshResponse{AccessToken: accessToken})
 }
 
 func handleError(ctx *fasthttp.RequestCtx, err error, status int) {
 	ctx.SetStatusCode(status)
 	ctx.SetContentType("application/json")
 	zap.L().Error(err.Error())
-	json.NewEncoder(ctx).Encode(map[string]string{
-		"error": err.Error(),
+	json.NewEncoder(ctx).Encode(types.HTTPError{
+		Error: err.Error(),
 	})
 }

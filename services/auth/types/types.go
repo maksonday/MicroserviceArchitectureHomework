@@ -9,3 +9,11 @@ type User struct {
 	Phone     string `db:"phone" json:"phone"`
 	Password  string `db:"password" json:"password,omitempty"`
 }
+
+type HTTPError struct {
+	Error string `json:"error"`
+}
+
+type RefreshResponse struct {
+	AccessToken string `json:"access_token"`
+}
