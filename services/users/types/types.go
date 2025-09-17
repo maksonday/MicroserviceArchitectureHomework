@@ -8,3 +8,7 @@ type User struct {
 	Email     string `db:"email" json:"email"`
 	Phone     string `db:"phone" json:"phone"`
 }
+
+type HTTPError struct {
+	Error string `json:"error"`
+}
