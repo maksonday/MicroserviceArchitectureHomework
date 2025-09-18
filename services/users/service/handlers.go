@@ -40,6 +40,7 @@ func handleUser(ctx *fasthttp.RequestCtx, userId int64) {
 //	@Success		204	{object}	nil
 //	@Failure		400	{object}	types.HTTPError
 //	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
 //	@Failure		500	{object}	types.HTTPError
 //	@Router			/user/ [delete]
 func deleteUser(ctx *fasthttp.RequestCtx, userId int64) {
@@ -60,6 +61,7 @@ func deleteUser(ctx *fasthttp.RequestCtx, userId int64) {
 //	@Success		200	{object}	types.User
 //	@Failure		400	{object}	types.HTTPError
 //	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
 //	@Failure		500	{object}	types.HTTPError
 //	@Router			/user/ [get]
 func getUser(ctx *fasthttp.RequestCtx, userId int64) {
@@ -89,6 +91,7 @@ func getUser(ctx *fasthttp.RequestCtx, userId int64) {
 //	@Success		200	{object}	nil
 //	@Failure		400	{object}	types.HTTPError
 //	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
 //	@Failure		500	{object}	types.HTTPError
 //	@Router			/user/ [post]
 func updateUser(ctx *fasthttp.RequestCtx, userId int64) {

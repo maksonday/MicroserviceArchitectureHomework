@@ -29,7 +29,7 @@ func NewServer(config *config.Config) *fasthttp.Server {
 			case "logout":
 				logoutHandler(ctx)
 			case "register":
-				registerHandler(ctx)
+				registerHandler(ctx, config.BillingAddr)
 			default:
 				ctx.Error("not found", fasthttp.StatusNotFound)
 			}

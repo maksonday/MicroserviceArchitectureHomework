@@ -9,6 +9,7 @@ import (
 	"auth/types"
 
 	"github.com/georgysavva/scany/sqlscan"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -137,6 +138,12 @@ func CreateUser(user *types.User) (int64, error) {
 	}
 
 	return id, nil
+}
+
+func DeleteUser(userId int64) {
+	if _, err := GetConn().Exec(`delete from users where id = $1`, userId); err != nil {
+		zap.L().Error("delete user", zap.Error(err))
+	}
 }
 
 func validateUser(user *types.User) error {
