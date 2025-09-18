@@ -4,6 +4,11 @@ definitions:
       error:
         type: string
     type: object
+  types.LogoutResponse:
+    properties:
+      message:
+        type: string
+    type: object
   types.RefreshResponse:
     properties:
       access_token:
@@ -42,9 +47,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: message":"logged out"}
+          description: OK
           schema:
-            type: string
+            $ref: '#/definitions/types.LogoutResponse'
         "401":
           description: Unauthorized
           schema:
