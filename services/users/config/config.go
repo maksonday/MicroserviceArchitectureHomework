@@ -49,7 +49,7 @@ type Config struct {
 func NewConfig() *Config {
 	return &Config{
 		BasePath:   "users",
-		AuthAddr:   "arch.homework",
+		AuthAddr:   "arch.homework/auth",
 		ListenPort: "8000",
 		LogLevel:   "info",
 		LogFile:    "stdout",

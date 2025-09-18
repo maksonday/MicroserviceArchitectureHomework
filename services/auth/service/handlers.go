@@ -39,7 +39,7 @@ func healthCheckHandler(ctx *fasthttp.RequestCtx) {
 //	@Failure		405	{object}	types.HTTPError
 //	@Failure		500	{object}	types.HTTPError
 //	@Router			/register [post]
-func registerHandler(ctx *fasthttp.RequestCtx) {
+func registerHandler(ctx *fasthttp.RequestCtx, billingAddr string) {
 	if string(ctx.Method()) != fasthttp.MethodPost {
 		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
 		return
@@ -58,10 +58,42 @@ func registerHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	if err := createAccount(ctx, billingAddr, id); err != nil {
+		db.DeleteUser(id)
+		handleError(ctx, fmt.Errorf("create account: %w", err), fasthttp.StatusUnauthorized)
+		return
+	}
+
 	if err := issueTokens(ctx, id, user.Username); err != nil {
 		handleError(ctx, fmt.Errorf("issue tokens: %w", err), fasthttp.StatusUnauthorized)
 		return
 	}
+}
+
+func createAccount(ctx *fasthttp.RequestCtx, billingAddr string, userId int64) error {
+	req := fasthttp.AcquireRequest()
+	authHeader := string(ctx.Request.Header.Peek("Authorization"))
+	refreshToken := string(ctx.Request.Header.Cookie(refreshCookieName))
+	// Set header authorization
+	req.Header.Set("Authorization", authHeader)
+	// Set cookie refresh_token
+	req.Header.SetCookie(refreshCookieName, refreshToken)
+	req.SetRequestURI(fmt.Sprintf("%s/create_account", billingAddr))
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseRequest(req)
+	defer fasthttp.ReleaseResponse(resp)
+
+	zap.L().Info("creating account", zap.Int64("user_id", userId))
+
+	if err := fasthttp.Do(req, resp); err != nil {
+		return fmt.Errorf("failed to send create account request: %w", err)
+	}
+
+	if resp.StatusCode() != fasthttp.StatusCreated {
+		return errors.New("failed to create account: " + string(resp.Body()))
+	}
+
+	return nil
 }
 
 // register godoc
@@ -115,9 +147,15 @@ func loginHandler(ctx *fasthttp.RequestCtx) {
 //	@Success		200	{object}	types.LogoutResponse
 //	@Failure		401	{object}	types.HTTPError
 //	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
 //	@Failure		500	{object}	types.HTTPError
 //	@Router			/logout [get]
 func logoutHandler(ctx *fasthttp.RequestCtx) {
+	if string(ctx.Method()) != fasthttp.MethodGet {
+		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
+		return
+	}
+
 	authHeader := string(ctx.Request.Header.Peek("Authorization"))
 	if !strings.HasPrefix(authHeader, "Bearer ") {
 		handleError(ctx, fmt.Errorf("no access-token"), fasthttp.StatusUnauthorized)
@@ -168,9 +206,15 @@ func logoutHandler(ctx *fasthttp.RequestCtx) {
 //	@Success		200	{object}	types.RefreshResponse
 //	@Failure		401	{object}	types.HTTPError
 //	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
 //	@Failure		500	{object}	types.HTTPError
 //	@Router			/refresh [get]
 func refreshHandler(ctx *fasthttp.RequestCtx) {
+	if string(ctx.Method()) != fasthttp.MethodGet {
+		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
+		return
+	}
+
 	refreshToken := retrieveRefreshTokenFromCtx(ctx)
 	if len(refreshToken) == 0 {
 		handleError(ctx, fmt.Errorf("no refresh token"), fasthttp.StatusUnauthorized)

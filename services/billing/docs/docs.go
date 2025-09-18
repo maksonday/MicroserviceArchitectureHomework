@@ -9,62 +9,34 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
+        "termsOfService": "http://swagger.io/terms/",
         "contact": {},
+        "license": {
+            "name": "Apache 2.0"
+        },
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/login": {
+        "/add_money": {
             "post": {
-                "description": "register user",
+                "description": "add money",
                 "consumes": [
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "billing"
                 ],
-                "summary": "register user",
+                "summary": "add money",
                 "responses": {
                     "200": {
                         "description": "OK"
                     },
-                    "401": {
-                        "description": "Unauthorized",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "405": {
-                        "description": "Method Not Allowed",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    }
-                }
-            }
-        },
-        "/logout": {
-            "get": {
-                "description": "logout user",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "logout user",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/types.LogoutResponse"
                         }
                     },
                     "401": {
@@ -94,22 +66,16 @@ const docTemplate = `{
                 }
             }
         },
-        "/refresh": {
+        "/create_account": {
             "get": {
-                "description": "refresh user tokens",
-                "produces": [
-                    "application/json"
-                ],
+                "description": "create account",
                 "tags": [
-                    "auth"
+                    "billing"
                 ],
-                "summary": "refresh user tokens",
+                "summary": "crate account",
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/types.RefreshResponse"
-                        }
+                    "201": {
+                        "description": "Created"
                     },
                     "401": {
                         "description": "Unauthorized",
@@ -138,19 +104,22 @@ const docTemplate = `{
                 }
             }
         },
-        "/register": {
-            "post": {
-                "description": "register user",
-                "consumes": [
+        "/get_balance": {
+            "get": {
+                "description": "get balance",
+                "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "billing"
                 ],
-                "summary": "register user",
+                "summary": "get balance",
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.BalanceResponse"
+                        }
                     },
                     "401": {
                         "description": "Unauthorized",
@@ -181,26 +150,18 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "types.BalanceResponse": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "type": "number"
+                }
+            }
+        },
         "types.HTTPError": {
             "type": "object",
             "properties": {
                 "error": {
-                    "type": "string"
-                }
-            }
-        },
-        "types.LogoutResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "types.RefreshResponse": {
-            "type": "object",
-            "properties": {
-                "access_token": {
                     "type": "string"
                 }
             }
@@ -210,12 +171,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
+	Version:          "1.0",
 	Host:             "",
 	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	Title:            "Users API",
+	Description:      "This is a users service API.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
