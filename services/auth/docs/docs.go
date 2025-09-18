@@ -62,9 +62,9 @@ const docTemplate = `{
                 "summary": "logout user",
                 "responses": {
                     "200": {
-                        "description": "message\":\"logged out\"}",
+                        "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/types.LogoutResponse"
                         }
                     },
                     "401": {
@@ -173,6 +173,14 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.LogoutResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
                     "type": "string"
                 }
             }

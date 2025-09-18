@@ -112,7 +112,7 @@ func loginHandler(ctx *fasthttp.RequestCtx) {
 //	@Description	logout user
 //	@Tags			auth
 //	@Produce 		json
-//	@Success		200	{string}	{"message":"logged out"}
+//	@Success		200	{object}	types.LogoutResponse
 //	@Failure		401	{object}	types.HTTPError
 //	@Failure		404	{object}	types.HTTPError
 //	@Failure		500	{object}	types.HTTPError
