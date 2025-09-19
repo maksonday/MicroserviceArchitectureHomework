@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 )
 
 var (
@@ -43,8 +44,9 @@ func ProcessPayment(userId int64, amount int64) error {
 	return nil
 }
 
-func AddMoney(userId int64, amount int64) error {
-	if _, err := GetConn().Exec(`update accounts set balance = balance + $1 where user_id = $2`, amount, userId); err != nil {
+func AddMoney(userId int64, amount float64) error {
+	rounded := math.Floor(amount*100) / 100
+	if _, err := GetConn().Exec(`update accounts set balance = balance + $1 where user_id = $2`, rounded, userId); err != nil {
 		return fmt.Errorf("add money: %w", err)
 	}
 

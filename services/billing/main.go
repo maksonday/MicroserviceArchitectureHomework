@@ -42,6 +42,8 @@ func main() {
 
 	redis.Init(config.RedisConfig)
 
+	service.NewPaymentsProcessor(config).Run()
+
 	server := service.NewServer(config)
 
 	log.Fatalf("serve: %s", server.ListenAndServe(":"+config.ListenPort))
