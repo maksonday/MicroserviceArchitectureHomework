@@ -58,22 +58,23 @@ func registerHandler(ctx *fasthttp.RequestCtx, billingAddr string) {
 		return
 	}
 
-	if err := createAccount(ctx, billingAddr, id); err != nil {
-		db.DeleteUser(id)
-		handleError(ctx, fmt.Errorf("create account: %w", err), fasthttp.StatusUnauthorized)
+	if err := issueTokens(ctx, id, user.Username); err != nil {
+		handleError(ctx, fmt.Errorf("issue tokens: %w", err), fasthttp.StatusUnauthorized)
 		return
 	}
 
-	if err := issueTokens(ctx, id, user.Username); err != nil {
-		handleError(ctx, fmt.Errorf("issue tokens: %w", err), fasthttp.StatusUnauthorized)
+	if err := createAccount(ctx, billingAddr, id); err != nil {
+		db.DeleteUser(id)
+		handleError(ctx, fmt.Errorf("create account: %w", err), fasthttp.StatusUnauthorized)
 		return
 	}
 }
 
 func createAccount(ctx *fasthttp.RequestCtx, billingAddr string, userId int64) error {
 	req := fasthttp.AcquireRequest()
-	authHeader := string(ctx.Request.Header.Peek("Authorization"))
-	refreshToken := string(ctx.Request.Header.Cookie(refreshCookieName))
+	// берем из подготовленного response заголовки и куки
+	authHeader := string(ctx.Response.Header.Peek("Authorization"))
+	refreshToken := string(ctx.Response.Header.PeekCookie(refreshCookieName))
 	// Set header authorization
 	req.Header.Set("Authorization", authHeader)
 	// Set cookie refresh_token

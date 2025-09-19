@@ -11,7 +11,7 @@ type Payment struct {
 }
 
 type Deposit struct {
-	Amount int64 `json:"amount"`
+	Amount float64 `json:"amount"`
 }
 
 type HTTPError struct {
