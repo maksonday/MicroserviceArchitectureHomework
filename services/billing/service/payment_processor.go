@@ -2,7 +2,10 @@ package service
 
 import (
 	"billing/config"
+	"billing/db"
 	"context"
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"os"
 	"os/signal"
@@ -62,10 +65,10 @@ func (p *PaymentsProcessor) Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	keepRunning := true
-	consumptionIsPaused := false
 
 	consumer := Consumer{
-		ready: make(chan bool),
+		ready:             make(chan bool),
+		processedMessages: make(chan *PaymentMessage, 256),
 	}
 
 	wg := &sync.WaitGroup{}
@@ -93,8 +96,35 @@ func (p *PaymentsProcessor) Run() {
 	<-consumer.ready // Await till the consumer has been set up
 	zap.L().Info("Sarama consumer up and running!...")
 
-	sigusr1 := make(chan os.Signal, 1)
-	signal.Notify(sigusr1, syscall.SIGUSR1)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for err := range p.producer.Errors() {
+			zap.L().Error("failed to produce message", zap.Error(err))
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+	ProducerLoop:
+		for {
+			select {
+			case msg := <-consumer.processedMessages:
+				bytes, err := json.Marshal(msg)
+				if err != nil {
+					zap.L().Error("failed to marshal payment message", zap.Error(err))
+					continue
+				}
+				zap.L().Sugar().Infof("Producing message: %s", string(bytes))
+				p.producer.Input() <- &sarama.ProducerMessage{Topic: p.produceTopic, Value: sarama.StringEncoder(string(bytes))}
+			case <-ctx.Done():
+				p.producer.AsyncClose() // Trigger a shutdown of the producer.
+				break ProducerLoop
+			}
+		}
+	}()
 
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
@@ -107,10 +137,9 @@ func (p *PaymentsProcessor) Run() {
 		case <-sigterm:
 			zap.L().Info("terminating: via signal")
 			keepRunning = false
-		case <-sigusr1:
-			toggleConsumptionFlow(p.consumer, &consumptionIsPaused)
 		}
 	}
+
 	cancel()
 	wg.Wait()
 	if err := p.consumer.Close(); err != nil {
@@ -118,21 +147,10 @@ func (p *PaymentsProcessor) Run() {
 	}
 }
 
-func toggleConsumptionFlow(consumer sarama.ConsumerGroup, isPaused *bool) {
-	if *isPaused {
-		consumer.ResumeAll()
-		zap.L().Info("Resuming consumption")
-	} else {
-		consumer.PauseAll()
-		zap.L().Info("Pausing consumption")
-	}
-
-	*isPaused = !*isPaused
-}
-
 // Consumer represents a Sarama consumer group consumer
 type Consumer struct {
-	ready chan bool
+	ready             chan bool
+	processedMessages chan *PaymentMessage
 }
 
 // Setup is run at the beginning of a new session, before ConsumeClaim
@@ -145,6 +163,19 @@ func (consumer *Consumer) Setup(sarama.ConsumerGroupSession) error {
 // Cleanup is run at the end of a session, once all ConsumeClaim goroutines have exited
 func (consumer *Consumer) Cleanup(sarama.ConsumerGroupSession) error {
 	return nil
+}
+
+const (
+	PaymentStatusPending int8 = iota
+	PaymentStatusOK
+	PaymentStatusFailed
+)
+
+type PaymentMessage struct {
+	PaymentID int64  `json:"payment_id"`
+	OrderID   int64  `json:"order_id"`
+	Items     string `json:"items"`
+	Status    int8   `json:"status"` // 0 - pending, 1 - ok, 2 - failed
 }
 
 // ConsumeClaim must start a consumer loop of ConsumerGroupClaim's Messages().
@@ -163,6 +194,9 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				return nil
 			}
 			zap.L().Sugar().Infof("Message claimed: value = %s, timestamp = %v, topic = %s", string(message.Value), message.Timestamp, message.Topic)
+			if err := consumer.processPayment(message.Value); err != nil {
+				zap.L().Error("failed to process payment message", zap.Error(err))
+			}
 			session.MarkMessage(message, "")
 		// Should return when `session.Context()` is done.
 		// If not, will raise `ErrRebalanceInProgress` or `read tcp <ip>:<port>: i/o timeout` when kafka rebalance. see:
@@ -171,4 +205,36 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 			return nil
 		}
 	}
+}
+
+func (consumer *Consumer) processPayment(data []byte) error {
+	var paymentMsg PaymentMessage
+	if err := json.Unmarshal(data, &paymentMsg); err != nil {
+		return err
+	}
+
+	if paymentMsg.Status != PaymentStatusPending || paymentMsg.PaymentID == 0 || paymentMsg.OrderID == 0 {
+		zap.L().Warn("received bad payment message",
+			zap.Int64("payment_id", paymentMsg.PaymentID),
+			zap.Int64("order_id", paymentMsg.OrderID),
+			zap.Int8("status", paymentMsg.Status))
+		return nil
+	}
+
+	defer func() {
+		zap.L().Sugar().Infof("Processed payment message: %+v", paymentMsg)
+		consumer.processedMessages <- &paymentMsg
+	}()
+
+	if err := db.ProcessPayment(paymentMsg.PaymentID, paymentMsg.OrderID); err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			db.RejectPayment(paymentMsg.PaymentID, err.Error())
+		}
+		paymentMsg.Status = PaymentStatusFailed
+		return nil
+	}
+
+	paymentMsg.Status = PaymentStatusOK
+
+	return nil
 }

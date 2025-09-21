@@ -42,7 +42,9 @@ func main() {
 
 	redis.Init(config.RedisConfig)
 
-	service.NewPaymentsProcessor(config).Run()
+	go func() {
+		service.NewPaymentsProcessor(config).Run()
+	}()
 
 	server := service.NewServer(config)
 

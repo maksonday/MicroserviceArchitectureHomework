@@ -26,24 +26,6 @@ func CreateAccount(userId int64) (int64, error) {
 	return id, nil
 }
 
-func ProcessPayment(userId int64, amount int64) error {
-	var balance int64
-	if err := GetConn().QueryRow(`select balance from accounts where id = $1`, userId).Scan(&balance); err != nil {
-		return fmt.Errorf("get account balance: %w", err)
-	}
-
-	if balance < amount {
-		return fmt.Errorf("insufficient funds")
-	}
-
-	if _, err := GetConn().Exec(`update accounts set balance = balance - $1 where id = $2`,
-		amount, userId); err != nil {
-		return fmt.Errorf("update account: %w", err)
-	}
-
-	return nil
-}
-
 func AddMoney(userId int64, amount float64) error {
 	rounded := math.Floor(amount*100) / 100
 	if _, err := GetConn().Exec(`update accounts set balance = balance + $1 where user_id = $2`, rounded, userId); err != nil {
