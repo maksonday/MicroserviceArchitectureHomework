@@ -16,7 +16,7 @@ import (
 
 //	@title			Users API
 //	@version		1.0
-//	@description	This is a users service API.
+//	@description	This is a billing service API.
 //	@termsOfService	http://swagger.io/terms/
 
 //	@license.name	Apache 2.0

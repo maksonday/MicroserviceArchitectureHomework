@@ -11,7 +11,7 @@ definitions:
     type: object
 info:
   contact: {}
-  description: This is a users service API.
+  description: This is a billing service API.
   license:
     name: Apache 2.0
   termsOfService: http://swagger.io/terms/

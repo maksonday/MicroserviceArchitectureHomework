@@ -1,7 +1,7 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "This is a users service API.",
+        "description": "This is a billing service API.",
         "title": "Users API",
         "termsOfService": "http://swagger.io/terms/",
         "contact": {},
