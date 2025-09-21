@@ -31,7 +31,7 @@ var (
 )
 
 func GetUserCredentials(username string) (*types.User, error) {
-	rows, err := GetConn().Query(`select id, email, password from users where username = $1 LIMIT 1`, username)
+	rows, err := GetConn().Query(`select id, email, password, roles from users where username = $1 LIMIT 1`, username)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
