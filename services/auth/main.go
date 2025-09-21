@@ -13,6 +13,13 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+//	@title			Users API
+//	@version		1.0
+//	@description	This is auth service API.
+//	@termsOfService	http://swagger.io/terms/
+
+// 	@license.name	Apache 2.0
+
 func main() {
 	appName := filepath.Base(os.Args[0])
 	config := config.NewConfig()

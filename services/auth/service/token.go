@@ -1,6 +1,7 @@
 package service
 
 import (
+	"auth/types"
 	"crypto/rsa"
 	"errors"
 	"fmt"
@@ -29,12 +30,13 @@ func init() {
 	}
 }
 
-func generateAccessToken(userID int64, username string) (string, error) {
+func generateAccessToken(user *types.User) (string, error) {
 	claims := jwt.MapClaims{
-		"user_id":  userID,
+		"user_id":  user.Id,
 		"jti":      uuid.NewString(),
 		"exp":      float64(time.Now().Add(accessTokenExp).Unix()),
-		"username": username,
+		"username": user.Username,
+		"roles":    user.Roles,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	return token.SignedString(privateKey)
@@ -50,15 +52,15 @@ func generateRefreshToken(username string) (string, error) {
 	return token.SignedString(privateKey)
 }
 
-func issueTokens(ctx *fasthttp.RequestCtx, userID int64, username string) error {
+func issueTokens(ctx *fasthttp.RequestCtx, user *types.User) error {
 	// Access token
-	accessToken, err := generateAccessToken(userID, username)
+	accessToken, err := generateAccessToken(user)
 	if err != nil {
 		return err
 	}
 
 	// Refresh token
-	refreshToken, err := generateRefreshToken(username)
+	refreshToken, err := generateRefreshToken(user.Username)
 	if err != nil {
 		return err
 	}

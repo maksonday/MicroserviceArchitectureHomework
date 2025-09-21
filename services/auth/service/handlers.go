@@ -58,7 +58,8 @@ func registerHandler(ctx *fasthttp.RequestCtx, billingAddr string) {
 		return
 	}
 
-	if err := issueTokens(ctx, id, user.Username); err != nil {
+	user.Id = id
+	if err := issueTokens(ctx, &user); err != nil {
 		handleError(ctx, fmt.Errorf("issue tokens: %w", err), fasthttp.StatusUnauthorized)
 		return
 	}
@@ -134,7 +135,7 @@ func loginHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	if err := issueTokens(ctx, user.Id, user.Username); err != nil {
+	if err := issueTokens(ctx, user); err != nil {
 		handleError(ctx, fmt.Errorf("issue tokens: %w", err), fasthttp.StatusUnauthorized)
 	}
 }
@@ -253,7 +254,7 @@ func refreshHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	accessToken, err := generateAccessToken(user.Id, username)
+	accessToken, err := generateAccessToken(user)
 	if err != nil {
 		handleError(ctx, fmt.Errorf("failed to generate access token: %w", err), fasthttp.StatusUnauthorized)
 		return
