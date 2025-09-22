@@ -72,10 +72,16 @@ const docTemplate = `{
                 "tags": [
                     "billing"
                 ],
-                "summary": "crate account",
+                "summary": "create account",
                 "responses": {
                     "201": {
                         "description": "Created"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
                     },
                     "401": {
                         "description": "Unauthorized",
@@ -119,6 +125,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/types.BalanceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
                         }
                     },
                     "401": {

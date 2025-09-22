@@ -19,25 +19,34 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/user/": {
-            "get": {
-                "description": "get user",
+        "/add_item": {
+            "post": {
+                "description": "add item",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "users"
+                    "stock"
                 ],
-                "summary": "get user",
+                "summary": "add item",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/types.User"
+                            "$ref": "#/definitions/types.Item"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/types.HTTPError"
                         }
@@ -61,16 +70,18 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
+            }
+        },
+        "/stock_change": {
             "post": {
-                "description": "update user",
+                "description": "stock_change",
                 "consumes": [
                     "application/json"
                 ],
                 "tags": [
-                    "users"
+                    "stock"
                 ],
-                "summary": "update user",
+                "summary": "stock_change",
                 "responses": {
                     "200": {
                         "description": "OK"
@@ -81,6 +92,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/types.HTTPError"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -100,19 +117,30 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
-            "delete": {
-                "description": "delete user",
-                "tags": [
-                    "users"
+            }
+        },
+        "/update_item": {
+            "post": {
+                "description": "update_item",
+                "consumes": [
+                    "application/json"
                 ],
-                "summary": "delete user",
+                "tags": [
+                    "stock"
+                ],
+                "summary": "update_item",
                 "responses": {
-                    "204": {
-                        "description": "No Content"
+                    "200": {
+                        "description": "OK"
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/types.HTTPError"
                         }
@@ -148,26 +176,20 @@ const docTemplate = `{
                 }
             }
         },
-        "types.User": {
+        "types.Item": {
             "type": "object",
             "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "firstname": {
+                "description": {
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
                 },
-                "lastname": {
+                "name": {
                     "type": "string"
                 },
-                "phone": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
+                "price": {
+                    "type": "number"
                 }
             }
         }
@@ -181,7 +203,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "",
 	Schemes:          []string{},
 	Title:            "Users API",
-	Description:      "This is a users service API.",
+	Description:      "This is a stock service API.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

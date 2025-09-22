@@ -21,10 +21,11 @@ func healthCheckHandler(ctx *fasthttp.RequestCtx) {
 
 // create_account godoc
 //
-//	@Summary		crate account
+//	@Summary		create account
 //	@Description	create account
 //	@Tags			billing
 //	@Success		201	{object}	nil
+//	@Failure		400	{object}	types.HTTPError
 //	@Failure		401	{object}	types.HTTPError
 //	@Failure		404	{object}	types.HTTPError
 //	@Failure		405	{object}	types.HTTPError
@@ -51,6 +52,7 @@ func createAccount(ctx *fasthttp.RequestCtx, userId int64) {
 //	@Tags			billing
 //	@Produce		json
 //	@Success		200	{object}	types.BalanceResponse
+//	@Failure		400	{object}	types.HTTPError
 //	@Failure		401	{object}	types.HTTPError
 //	@Failure		404	{object}	types.HTTPError
 //	@Failure		405	{object}	types.HTTPError

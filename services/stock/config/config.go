@@ -35,15 +35,45 @@ type RedisConfig struct {
 	DB   int    `toml:"db"`
 }
 
+type KafkaConsumerConfig struct {
+	Brokers []string `toml:"brokers"`
+	GroupID string   `toml:"group-id"`
+	Topic   string   `toml:"topic"`
+	Version string   `toml:"version"`
+}
+
+func NewKafkaConsumerConfig() *KafkaConsumerConfig {
+	return &KafkaConsumerConfig{
+		Brokers: []string{"kafka:9092"},
+		GroupID: "payments",
+		Topic:   "payments",
+	}
+}
+
+type KafkaProducerConfig struct {
+	Brokers []string `toml:"brokers"`
+	Topic   string   `toml:"topic"`
+	Version string   `toml:"version"`
+}
+
+func NewKafkaProducerConfig() *KafkaProducerConfig {
+	return &KafkaProducerConfig{
+		Brokers: []string{"kafka:9092"},
+		Topic:   "payments_status",
+	}
+}
+
 type Config struct {
-	BasePath     string        `toml:"base-path"`
-	AuthAddr     string        `toml:"auth-addr"`
-	ListenPort   string        `toml:"listen-port"`
-	LogLevel     string        `toml:"log-level"`
-	LogFile      string        `toml:"log-file"`
-	ServerConfig *ServerConfig `toml:"server-config"`
-	DBConfig     *DBConfig     `toml:"db-config"`
-	RedisConfig  *RedisConfig  `toml:"redis-config"`
+	BasePath       string               `toml:"base-path"`
+	AuthAddr       string               `toml:"auth-addr"`
+	ListenPort     string               `toml:"listen-port"`
+	LogLevel       string               `toml:"log-level"`
+	LogFile        string               `toml:"log-file"`
+	ServerConfig   *ServerConfig        `toml:"server-config"`
+	DBConfig       *DBConfig            `toml:"db-config"`
+	RedisConfig    *RedisConfig         `toml:"redis-config"`
+	ConsumerConfig *KafkaConsumerConfig `toml:"consumer-config"`
+	ProducerConfig *KafkaProducerConfig `toml:"producer-config"`
 }
 
 func NewConfig() *Config {
@@ -61,6 +91,8 @@ func NewConfig() *Config {
 			Port: 6379,
 			DB:   0,
 		},
-		ServerConfig: NewServerConfig(),
+		ServerConfig:   NewServerConfig(),
+		ConsumerConfig: NewKafkaConsumerConfig(),
+		ProducerConfig: NewKafkaProducerConfig(),
 	}
 }
