@@ -4,66 +4,44 @@ definitions:
       error:
         type: string
     type: object
-  types.User:
+  types.Item:
     properties:
-      email:
-        type: string
-      firstname:
+      description:
         type: string
       id:
         type: integer
-      lastname:
+      name:
         type: string
-      phone:
-        type: string
-      username:
-        type: string
+      price:
+        type: number
     type: object
 info:
   contact: {}
-  description: This is a users service API.
+  description: This is a stock service API.
   license:
     name: Apache 2.0
   termsOfService: http://swagger.io/terms/
   title: Users API
   version: "1.0"
 paths:
-  /user/:
-    delete:
-      description: delete user
-      responses:
-        "204":
-          description: No Content
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/types.HTTPError'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/types.HTTPError'
-        "405":
-          description: Method Not Allowed
-          schema:
-            $ref: '#/definitions/types.HTTPError'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/types.HTTPError'
-      summary: delete user
-      tags:
-      - users
-    get:
-      description: get user
+  /add_item:
+    post:
+      consumes:
+      - application/json
+      description: add item
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/types.User'
+            $ref: '#/definitions/types.Item'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/types.HTTPError'
         "404":
@@ -78,13 +56,14 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/types.HTTPError'
-      summary: get user
+      summary: add item
       tags:
-      - users
+      - stock
+  /stock_change:
     post:
       consumes:
       - application/json
-      description: update user
+      description: stock_change
       responses:
         "200":
           description: OK
@@ -92,6 +71,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/types.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/types.HTTPError'
         "404":
           description: Not Found
           schema:
@@ -104,7 +87,38 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/types.HTTPError'
-      summary: update user
+      summary: stock_change
       tags:
-      - users
+      - stock
+  /update_item:
+    post:
+      consumes:
+      - application/json
+      description: update_item
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+      summary: update_item
+      tags:
+      - stock
 swagger: "2.0"

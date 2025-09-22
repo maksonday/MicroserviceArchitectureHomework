@@ -42,6 +42,10 @@ func main() {
 
 	redis.Init(config.RedisConfig)
 
+	go func() {
+		service.NewStockChangesProcessor(config).Run()
+	}()
+
 	server := service.NewServer(config)
 
 	log.Fatalf("serve: %s", server.ListenAndServe(":"+config.ListenPort))

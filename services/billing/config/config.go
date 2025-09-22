@@ -52,7 +52,7 @@ func NewKafkaConsumerConfig() *KafkaConsumerConfig {
 
 type KafkaProducerConfig struct {
 	Brokers []string `toml:"brokers"`
-	Topic   string   `toml:"producer-topic"`
+	Topic   string   `toml:"topic"`
 	Version string   `toml:"version"`
 }
 
@@ -72,7 +72,6 @@ type Config struct {
 	ServerConfig   *ServerConfig        `toml:"server-config"`
 	DBConfig       *DBConfig            `toml:"db-config"`
 	RedisConfig    *RedisConfig         `toml:"redis-config"`
-	KafkaAddr      string               `toml:"kafka-addr"`
 	ConsumerConfig *KafkaConsumerConfig `toml:"consumer-config"`
 	ProducerConfig *KafkaProducerConfig `toml:"producer-config"`
 }

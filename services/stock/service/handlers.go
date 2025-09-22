@@ -60,6 +60,20 @@ func validateItem(item *types.Item) error {
 	}
 }
 
+// add_item godoc
+//
+//	@Summary		add item
+//	@Description	add item
+//	@Tags			stock
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	types.Item
+//	@Failure		400	{object}	types.HTTPError
+//	@Failure		401	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/add_item [post]
 func handleAddItem(ctx *fasthttp.RequestCtx) {
 	if string(ctx.Method()) != fasthttp.MethodPost {
 		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
@@ -82,9 +96,24 @@ func handleAddItem(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.SetStatusCode(fasthttp.StatusCreated)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.SetContentType("application/json")
+	json.NewEncoder(ctx).Encode(item)
 }
 
+// update_item godoc
+//
+//	@Summary		update_item
+//	@Description	update_item
+//	@Tags			stock
+//	@Accept			json
+//	@Success		200	{object}	nil
+//	@Failure		400	{object}	types.HTTPError
+//	@Failure		401	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/update_item [post]
 func handleUpdateItem(ctx *fasthttp.RequestCtx) {
 	if string(ctx.Method()) != fasthttp.MethodPost {
 		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
@@ -110,6 +139,19 @@ func handleUpdateItem(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
+// stock_change godoc
+//
+//	@Summary		stock_change
+//	@Description	stock_change
+//	@Tags			stock
+//	@Accept			json
+//	@Success		200	{object}	nil
+//	@Failure		400	{object}	types.HTTPError
+//	@Failure		401	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/stock_change [post]
 func handleStockChange(ctx *fasthttp.RequestCtx) {
 	if string(ctx.Method()) != fasthttp.MethodPost {
 		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
@@ -126,8 +168,6 @@ func handleStockChange(ctx *fasthttp.RequestCtx) {
 		handleError(ctx, fmt.Errorf("update stock change: %w", err), fasthttp.StatusBadRequest)
 		return
 	}
-
-	ProcessStockChange(&stockChange)
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
