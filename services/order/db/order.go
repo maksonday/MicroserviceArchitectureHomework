@@ -11,6 +11,41 @@ import (
 
 var ErrEmptyOrder = errors.New("empty order")
 
+func GetOrders(userID int64) ([]types.Order, error) {
+	rows, err := GetConn().Query(`select id, items, status from orders where user_id = $1`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	orders := make([]types.Order, 0)
+	for rows.Next() {
+		var id int64
+		var items, status string
+		if err := rows.Scan(&id, &items, &status); err != nil {
+			return nil, err
+		}
+
+		order := types.Order{
+			ID:     id,
+			Status: status,
+		}
+
+		if err := json.Unmarshal([]byte(items), &order.Items); err != nil {
+			zap.L().Error("failed to unpack items", zap.Error(err), zap.String("data", items))
+			continue
+		}
+
+		orders = append(orders, order)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return orders, nil
+}
+
 func CreateOrder(userID int64, order *types.Order) (int64, error) {
 	if len(order.Items) == 0 {
 		return 0, ErrEmptyOrder

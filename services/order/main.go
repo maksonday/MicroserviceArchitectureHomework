@@ -14,6 +14,13 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+//	@title			Order API
+//	@version		1.0
+//	@description	This is order service API.
+//	@termsOfService	http://swagger.io/terms/
+
+//	@license.name	Apache 2.0
+
 func main() {
 	executablePath, err := os.Executable()
 	if err != nil {

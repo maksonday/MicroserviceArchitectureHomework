@@ -1,22 +1,22 @@
 package main
 
 import (
-	"billing/config"
-	"billing/db"
-	"billing/logging"
-	"billing/redis"
-	"billing/service"
 	"fmt"
 	"log"
+	"notifications/config"
+	"notifications/db"
+	"notifications/logging"
+	"notifications/redis"
+	"notifications/service"
 	"os"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 )
 
-//	@title			Billing API
+//	@title			Notifications API
 //	@version		1.0
-//	@description	This is a billing service API.
+//	@description	This is notifications service API.
 //	@termsOfService	http://swagger.io/terms/
 
 //	@license.name	Apache 2.0
@@ -43,7 +43,7 @@ func main() {
 	redis.Init(config.RedisConfig)
 
 	go func() {
-		service.NewPaymentsProcessor(config).Run()
+		service.NewNotificationsProcessor(config).Run()
 	}()
 
 	server := service.NewServer(config)

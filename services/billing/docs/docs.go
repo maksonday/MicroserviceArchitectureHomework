@@ -187,7 +187,7 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "",
 	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "Users API",
+	Title:            "Billing API",
 	Description:      "This is a billing service API.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,

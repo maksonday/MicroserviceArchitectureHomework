@@ -13,7 +13,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-//	@title			Users API
+//	@title			Auth API
 //	@version		1.0
 //	@description	This is auth service API.
 //	@termsOfService	http://swagger.io/terms/

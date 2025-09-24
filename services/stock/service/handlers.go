@@ -45,6 +45,10 @@ var (
 	ErrNoItemName  = errors.New("no item name")
 	ErrNoItemDesc  = errors.New("no item description")
 	ErrNoItemPrice = errors.New("item price is not provided or less than 0.01")
+	ErrBadInput    = errors.New("bad input")
+	ErrAddItem     = errors.New("add item error")
+	ErrUpdateItem  = errors.New("update item error")
+	ErrUpdateStock = errors.New("update stock error")
 )
 
 func validateItem(item *types.Item) error {
@@ -82,17 +86,20 @@ func handleAddItem(ctx *fasthttp.RequestCtx) {
 
 	var item types.Item
 	if err := json.Unmarshal(ctx.Request.Body(), &item); err != nil {
-		handleError(ctx, err, fasthttp.StatusBadRequest)
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrBadInput, fasthttp.StatusBadRequest)
 		return
 	}
 
 	if err := validateItem(&item); err != nil {
+		zap.L().Error("validate item", zap.Error(err))
 		handleError(ctx, err, fasthttp.StatusBadRequest)
 		return
 	}
 
 	if err := db.AddItem(&item); err != nil {
-		handleError(ctx, fmt.Errorf("add item: %w", err), fasthttp.StatusBadRequest)
+		zap.L().Error(fmt.Errorf("add item: %w", err).Error())
+		handleError(ctx, ErrAddItem, fasthttp.StatusBadRequest)
 		return
 	}
 
@@ -122,17 +129,20 @@ func handleUpdateItem(ctx *fasthttp.RequestCtx) {
 
 	var item types.Item
 	if err := json.Unmarshal(ctx.Request.Body(), &item); err != nil {
-		handleError(ctx, err, fasthttp.StatusBadRequest)
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrBadInput, fasthttp.StatusBadRequest)
 		return
 	}
 
 	if err := validateItem(&item); err != nil {
+		zap.L().Error("validate item", zap.Error(err))
 		handleError(ctx, err, fasthttp.StatusBadRequest)
 		return
 	}
 
 	if err := db.UpdateItem(&item); err != nil {
-		handleError(ctx, fmt.Errorf("update item: %w", err), fasthttp.StatusBadRequest)
+		zap.L().Error(fmt.Errorf("update item: %w", err).Error())
+		handleError(ctx, ErrUpdateItem, fasthttp.StatusBadRequest)
 		return
 	}
 
@@ -160,12 +170,14 @@ func handleStockChange(ctx *fasthttp.RequestCtx) {
 
 	var stockChange types.StockChange
 	if err := json.Unmarshal(ctx.Request.Body(), &stockChange); err != nil {
-		handleError(ctx, err, fasthttp.StatusBadRequest)
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrBadInput, fasthttp.StatusBadRequest)
 		return
 	}
 
 	if err := db.ProcessStockChange(&stockChange); err != nil {
-		handleError(ctx, fmt.Errorf("update stock change: %w", err), fasthttp.StatusBadRequest)
+		zap.L().Error(fmt.Errorf("update stock change: %w", err).Error())
+		handleError(ctx, ErrUpdateStock, fasthttp.StatusBadRequest)
 		return
 	}
 
@@ -175,7 +187,6 @@ func handleStockChange(ctx *fasthttp.RequestCtx) {
 func handleError(ctx *fasthttp.RequestCtx, err error, status int) {
 	ctx.SetStatusCode(status)
 	ctx.SetContentType("application/json")
-	zap.L().Error(err.Error())
 	json.NewEncoder(ctx).Encode(types.HTTPError{
 		Error: err.Error(),
 	})

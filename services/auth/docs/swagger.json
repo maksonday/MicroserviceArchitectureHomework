@@ -2,7 +2,7 @@
     "swagger": "2.0",
     "info": {
         "description": "This is auth service API.",
-        "title": "Users API",
+        "title": "Auth API",
         "termsOfService": "http://swagger.io/terms/",
         "contact": {},
         "license": {

@@ -1,8 +1,13 @@
 package types
 
+type HTTPError struct {
+	Error string `json:"error"`
+}
+
 type Order struct {
-	ID    int64
-	Items []Item `json:"items"`
+	ID     int64  `json:"id,omitempty"`
+	Items  []Item `json:"items"`
+	Status string `json:"status,omitempty"`
 }
 
 type Item struct {
@@ -10,7 +15,4 @@ type Item struct {
 	Quantity int64 `json:"quantity"`
 	StockID  int64
 	OrderID  int64
-}
-
-type CreateOrderResponse struct {
 }

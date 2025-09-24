@@ -4,6 +4,7 @@ import (
 	"billing/db"
 	"billing/types"
 	"encoding/json"
+	"errors"
 
 	"github.com/valyala/fasthttp"
 	"go.uber.org/zap"
@@ -18,6 +19,13 @@ func healthCheckHandler(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	ctx.WriteString(`{"status":"OK"}`)
 }
+
+var (
+	ErrBadInput      = errors.New("bad input")
+	ErrGetBalance    = errors.New("get balance error")
+	ErrAddMoney      = errors.New("deposit money error")
+	ErrCreateAccount = errors.New("create account error")
+)
 
 // create_account godoc
 //
@@ -38,7 +46,8 @@ func createAccount(ctx *fasthttp.RequestCtx, userId int64) {
 	}
 
 	if _, err := db.CreateAccount(userId); err != nil {
-		handleError(ctx, err, fasthttp.StatusBadRequest)
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrCreateAccount, fasthttp.StatusBadRequest)
 		return
 	}
 
@@ -66,7 +75,8 @@ func getBalance(ctx *fasthttp.RequestCtx, userId int64) {
 
 	balance, err := db.GetBalance(userId)
 	if err != nil {
-		handleError(ctx, err, fasthttp.StatusBadRequest)
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrGetBalance, fasthttp.StatusBadRequest)
 		return
 	}
 
@@ -96,12 +106,14 @@ func addMoney(ctx *fasthttp.RequestCtx, userId int64) {
 
 	var deposit types.Deposit
 	if err := json.Unmarshal(ctx.Request.Body(), &deposit); err != nil {
-		handleError(ctx, err, fasthttp.StatusBadRequest)
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrBadInput, fasthttp.StatusBadRequest)
 		return
 	}
 
 	if err := db.AddMoney(userId, deposit.Amount); err != nil {
-		handleError(ctx, err, fasthttp.StatusBadRequest)
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrAddMoney, fasthttp.StatusBadRequest)
 		return
 	}
 
@@ -111,7 +123,6 @@ func addMoney(ctx *fasthttp.RequestCtx, userId int64) {
 func handleError(ctx *fasthttp.RequestCtx, err error, status int) {
 	ctx.SetStatusCode(status)
 	ctx.SetContentType("application/json")
-	zap.L().Error(err.Error())
 	json.NewEncoder(ctx).Encode(types.HTTPError{
 		Error: err.Error(),
 	})
