@@ -19,119 +19,72 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/add_item": {
+        "/create_order": {
             "post": {
-                "description": "add item",
+                "description": "create order",
                 "consumes": [
                     "application/json"
                 ],
+                "tags": [
+                    "order"
+                ],
+                "summary": "create order",
+                "responses": {
+                    "201": {
+                        "description": "Created"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/get_orders": {
+            "get": {
+                "description": "get orders",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "stock"
+                    "order"
                 ],
-                "summary": "add item",
+                "summary": "get orders",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/types.Item"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/types.Order"
+                            }
                         }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "405": {
-                        "description": "Method Not Allowed",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    }
-                }
-            }
-        },
-        "/stock_change": {
-            "post": {
-                "description": "stock_change",
-                "consumes": [
-                    "application/json"
-                ],
-                "tags": [
-                    "stock"
-                ],
-                "summary": "stock_change",
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "405": {
-                        "description": "Method Not Allowed",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    }
-                }
-            }
-        },
-        "/update_item": {
-            "post": {
-                "description": "update_item",
-                "consumes": [
-                    "application/json"
-                ],
-                "tags": [
-                    "stock"
-                ],
-                "summary": "update_item",
-                "responses": {
-                    "200": {
-                        "description": "OK"
                     },
                     "400": {
                         "description": "Bad Request",
@@ -179,17 +132,36 @@ const docTemplate = `{
         "types.Item": {
             "type": "object",
             "properties": {
-                "description": {
-                    "type": "string"
-                },
                 "id": {
                     "type": "integer"
                 },
-                "name": {
-                    "type": "string"
+                "orderID": {
+                    "type": "integer",
+                    "format": "int64"
                 },
-                "price": {
-                    "type": "number"
+                "quantity": {
+                    "type": "integer"
+                },
+                "stockID": {
+                    "type": "integer",
+                    "format": "int64"
+                }
+            }
+        },
+        "types.Order": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.Item"
+                    }
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         }
@@ -202,8 +174,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "",
 	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "Stock API",
-	Description:      "This is a stock service API.",
+	Title:            "Order API",
+	Description:      "This is order service API.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

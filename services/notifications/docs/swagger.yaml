@@ -1,0 +1,56 @@
+definitions:
+  types.HTTPError:
+    properties:
+      error:
+        type: string
+    type: object
+  types.Notification:
+    properties:
+      message:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: This is notifications service API.
+  license:
+    name: Apache 2.0
+  termsOfService: http://swagger.io/terms/
+  title: Notifications API
+  version: "1.0"
+paths:
+  /get_notifications:
+    get:
+      description: get notifications
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/types.Notification'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+      summary: get notifications
+      tags:
+      - notifications
+swagger: "2.0"

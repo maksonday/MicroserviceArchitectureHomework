@@ -27,6 +27,20 @@ func healthCheckHandler(ctx *fasthttp.RequestCtx) {
 	ctx.WriteString(`{"status":"OK"}`)
 }
 
+var (
+	ErrCreateUser         = errors.New("create user error")
+	ErrCreateAccount      = errors.New("create account error")
+	ErrBadInput           = errors.New("bad input")
+	ErrIssueTokens        = errors.New("issue tokens error")
+	ErrGetUserCredentials = errors.New("can't get credentials")
+	ErrIncorrectPasword   = errors.New("incorrect password")
+	ErrNoAccessToken      = errors.New("no access token")
+	ErrNoRefreshToken     = errors.New("no refresh token")
+	ErrBadAccessToken     = errors.New("bad access token")
+	ErrBadRefreshToken    = errors.New("bad refresh token")
+	ErrRefreshToken       = errors.New("refresh token error")
+)
+
 // register godoc
 //
 //	@Summary		register user
@@ -48,25 +62,29 @@ func registerHandler(ctx *fasthttp.RequestCtx, billingAddr string) {
 	var user types.User
 
 	if err := json.Unmarshal(ctx.Request.Body(), &user); err != nil {
-		handleError(ctx, fmt.Errorf("unmarshal user: %w", err), fasthttp.StatusUnauthorized)
+		zap.L().Error(fmt.Errorf("unmarshal user: %w", err).Error())
+		handleError(ctx, ErrBadInput, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	id, err := db.CreateUser(&user)
 	if err != nil {
-		handleError(ctx, fmt.Errorf("create user: %w", err), fasthttp.StatusUnauthorized)
+		zap.L().Error(fmt.Errorf("create user: %w", err).Error())
+		handleError(ctx, ErrCreateUser, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	user.Id = id
 	if err := issueTokens(ctx, &user); err != nil {
-		handleError(ctx, fmt.Errorf("issue tokens: %w", err), fasthttp.StatusUnauthorized)
+		zap.L().Error(fmt.Errorf("issue tokens: %w", err).Error())
+		handleError(ctx, ErrIssueTokens, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	if err := createAccount(ctx, billingAddr, id); err != nil {
 		db.DeleteUser(id)
-		handleError(ctx, fmt.Errorf("create account: %w", err), fasthttp.StatusUnauthorized)
+		zap.L().Error(fmt.Errorf("create account: %w", err).Error())
+		handleError(ctx, ErrCreateAccount, fasthttp.StatusUnauthorized)
 		return
 	}
 }
@@ -120,23 +138,27 @@ func loginHandler(ctx *fasthttp.RequestCtx) {
 		Password string `json:"password"`
 	}
 	if err := json.Unmarshal(ctx.Request.Body(), &input); err != nil {
-		handleError(ctx, fmt.Errorf("unmarshal input: %w", err), fasthttp.StatusUnauthorized)
+		zap.L().Error(fmt.Errorf("unmarshal input: %w", err).Error())
+		handleError(ctx, ErrBadInput, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	user, err := db.GetUserCredentials(input.Username)
 	if err != nil {
-		handleError(ctx, fmt.Errorf("get user credentials: %w", err), fasthttp.StatusUnauthorized)
+		zap.L().Error(fmt.Errorf("get user credentials: %w", err).Error())
+		handleError(ctx, ErrGetUserCredentials, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
-		handleError(ctx, fmt.Errorf("password incorrect"), fasthttp.StatusUnauthorized)
+		zap.L().Error(ErrIncorrectPasword.Error())
+		handleError(ctx, ErrIncorrectPasword, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	if err := issueTokens(ctx, user); err != nil {
-		handleError(ctx, fmt.Errorf("issue tokens: %w", err), fasthttp.StatusUnauthorized)
+		zap.L().Error(fmt.Errorf("issue tokens: %w", err).Error())
+		handleError(ctx, ErrIssueTokens, fasthttp.StatusUnauthorized)
 	}
 }
 
@@ -160,36 +182,42 @@ func logoutHandler(ctx *fasthttp.RequestCtx) {
 
 	authHeader := string(ctx.Request.Header.Peek("Authorization"))
 	if !strings.HasPrefix(authHeader, "Bearer ") {
-		handleError(ctx, fmt.Errorf("no access-token"), fasthttp.StatusUnauthorized)
+		zap.L().Error(ErrNoAccessToken.Error())
+		handleError(ctx, ErrNoAccessToken, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	accessToken := strings.TrimPrefix(authHeader, "Bearer ")
 	claimsAt, err := parseToken(accessToken)
 	if err != nil {
-		handleError(ctx, fmt.Errorf("failed to parse access-token: %w", err), fasthttp.StatusUnauthorized)
+		zap.L().Error(fmt.Errorf("failed to parse access-token: %w", err).Error())
+		handleError(ctx, ErrBadAccessToken, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	if err := redis.Client.PutTokenToBlacklist(blAtKeyPrefix, claimsAt); err != nil {
-		handleError(ctx, fmt.Errorf("failed to blacklist access-token: %w", err), fasthttp.StatusUnauthorized)
+		zap.L().Error(fmt.Errorf("failed to blacklist access-token: %w", err).Error())
+		handleError(ctx, ErrBadAccessToken, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	refreshToken := retrieveRefreshTokenFromCtx(ctx)
 	if len(refreshToken) == 0 {
-		handleError(ctx, fmt.Errorf("no refresh token"), fasthttp.StatusUnauthorized)
+		zap.L().Error(ErrNoRefreshToken.Error())
+		handleError(ctx, ErrNoRefreshToken, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	claimsRt, err := parseToken(refreshToken)
 	if err != nil {
-		handleError(ctx, fmt.Errorf("failed to parse refresh-token: %w", err), fasthttp.StatusUnauthorized)
+		zap.L().Error(fmt.Errorf("failed to parse refresh-token: %w", err).Error())
+		handleError(ctx, ErrBadRefreshToken, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	if err := redis.Client.PutTokenToBlacklist(blRtKeyPrefix, claimsRt); err != nil {
-		handleError(ctx, fmt.Errorf("failed to blacklist access-token: %w", err), fasthttp.StatusUnauthorized)
+		zap.L().Error(fmt.Errorf("failed to blacklist access-token: %w", err).Error())
+		handleError(ctx, ErrBadAccessToken, fasthttp.StatusUnauthorized)
 		return
 	}
 
@@ -219,44 +247,51 @@ func refreshHandler(ctx *fasthttp.RequestCtx) {
 
 	refreshToken := retrieveRefreshTokenFromCtx(ctx)
 	if len(refreshToken) == 0 {
-		handleError(ctx, fmt.Errorf("no refresh token"), fasthttp.StatusUnauthorized)
+		zap.L().Error(ErrNoRefreshToken.Error())
+		handleError(ctx, ErrNoRefreshToken, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	claims, err := parseToken(refreshToken)
 	if err != nil {
-		handleError(ctx, fmt.Errorf("failed to parse token: %w", err), fasthttp.StatusUnauthorized)
+		zap.L().Error(fmt.Errorf("failed to parse refresh token: %w", err).Error())
+		handleError(ctx, ErrBadRefreshToken, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	// проверяем, нет ли refresh-token в блэклисте(из-за logout, например)
 	blacklisted, err := redis.Client.CheckTokenBlacklist(blRtKeyPrefix, claims)
 	if err != nil && !errors.Is(err, redis.ErrNil) {
-		handleError(ctx, fmt.Errorf("failed to check refresh token blacklist: %w", err), fasthttp.StatusUnauthorized)
+		zap.L().Error(fmt.Errorf("failed to check refresh token blacklist: %w", err).Error())
+		handleError(ctx, ErrBadRefreshToken, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	if blacklisted {
-		handleError(ctx, fmt.Errorf("refresh token is blacklisted"), fasthttp.StatusUnauthorized)
+		zap.L().Error("refresh token is blacklisted")
+		handleError(ctx, ErrBadAccessToken, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	username, ok := claims["username"].(string)
 	if !ok {
-		handleError(ctx, fmt.Errorf("failed to get data from refresh token"), fasthttp.StatusUnauthorized)
+		zap.L().Error("failed to get data from refresh token")
+		handleError(ctx, ErrBadRefreshToken, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	// достаем данные пользователя для генерации access-token
 	user, err := db.GetUserCredentials(username)
 	if err != nil {
-		handleError(ctx, fmt.Errorf("failed to get user: %w", err), fasthttp.StatusUnauthorized)
+		zap.L().Error(fmt.Errorf("failed to get user: %w", err).Error())
+		handleError(ctx, ErrGetUserCredentials, fasthttp.StatusUnauthorized)
 		return
 	}
 
 	accessToken, err := generateAccessToken(user)
 	if err != nil {
-		handleError(ctx, fmt.Errorf("failed to generate access token: %w", err), fasthttp.StatusUnauthorized)
+		zap.L().Error(fmt.Errorf("failed to generate access token: %w", err).Error())
+		handleError(ctx, ErrRefreshToken, fasthttp.StatusUnauthorized)
 		return
 	}
 
@@ -268,7 +303,6 @@ func refreshHandler(ctx *fasthttp.RequestCtx) {
 func handleError(ctx *fasthttp.RequestCtx, err error, status int) {
 	ctx.SetStatusCode(status)
 	ctx.SetContentType("application/json")
-	zap.L().Error(err.Error())
 	json.NewEncoder(ctx).Encode(types.HTTPError{
 		Error: err.Error(),
 	})

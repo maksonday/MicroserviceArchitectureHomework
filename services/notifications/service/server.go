@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"order/config"
-	"order/redis"
+	"notifications/config"
+	"notifications/redis"
 	"strings"
 
 	"github.com/valyala/fasthttp"
@@ -29,30 +29,24 @@ func NewServer(config *config.Config) *fasthttp.Server {
 				return
 			}
 
+			if len(parts) != 2 {
+				ctx.Error("not found", fasthttp.StatusNotFound)
+				return
+			}
+
 			switch parts[1] {
-			case "create_order", "get_orders":
-				switch {
-				case len(parts) == 2:
-					var (
-						userId int64
-						err    error
-					)
+			case "get_notifications":
+				var (
+					userId int64
+					err    error
+				)
 
-					if userId, err = authMiddleware(config.AuthAddr, ctx); err != nil {
-						handleError(ctx, err, fasthttp.StatusUnauthorized)
-						return
-					}
-
-					switch parts[1] {
-					case "create_order":
-						handleCreateOrder(userId, ctx)
-					case "get_orders":
-						handleGetOrders(userId, ctx)
-					}
-				default:
-					ctx.Error("not found", fasthttp.StatusNotFound)
+				if userId, err = authMiddleware(config.AuthAddr, ctx); err != nil {
+					handleError(ctx, err, fasthttp.StatusUnauthorized)
 					return
 				}
+
+				handleGetNotifications(userId, ctx)
 			case "health":
 				healthCheckHandler(ctx)
 			default:

@@ -14,7 +14,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-//	@title			Users API
+//	@title			Stock API
 //	@version		1.0
 //	@description	This is a stock service API.
 //	@termsOfService	http://swagger.io/terms/

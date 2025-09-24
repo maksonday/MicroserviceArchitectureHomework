@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	"users/db"
 	"users/types"
 
@@ -32,6 +33,13 @@ func handleUser(ctx *fasthttp.RequestCtx, userId int64) {
 	}
 }
 
+var (
+	ErrBadInput   = errors.New("bad input")
+	ErrDeleteUser = errors.New("delete user error")
+	ErrUpdateUser = errors.New("update user error")
+	ErrGetUser    = errors.New("get user error")
+)
+
 // deleteUser godoc
 //
 //	@Summary		delete user
@@ -45,7 +53,8 @@ func handleUser(ctx *fasthttp.RequestCtx, userId int64) {
 //	@Router			/user/ [delete]
 func deleteUser(ctx *fasthttp.RequestCtx, userId int64) {
 	if err := db.DeleteUser(userId); err != nil {
-		handleError(ctx, err, fasthttp.StatusBadRequest)
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrDeleteUser, fasthttp.StatusBadRequest)
 		return
 	}
 
@@ -67,19 +76,14 @@ func deleteUser(ctx *fasthttp.RequestCtx, userId int64) {
 func getUser(ctx *fasthttp.RequestCtx, userId int64) {
 	user, err := db.GetUser(userId)
 	if err != nil {
-		handleError(ctx, err, fasthttp.StatusBadRequest)
-		return
-	}
-
-	ctx.SetContentType("application/json")
-	response, err := json.Marshal(user)
-	if err != nil {
-		handleError(ctx, err, fasthttp.StatusBadRequest)
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrGetUser, fasthttp.StatusBadRequest)
 		return
 	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
-	ctx.Write(response)
+	ctx.SetContentType("application/json")
+	json.NewEncoder(ctx).Encode(user)
 }
 
 // updateUser godoc
@@ -97,13 +101,15 @@ func getUser(ctx *fasthttp.RequestCtx, userId int64) {
 func updateUser(ctx *fasthttp.RequestCtx, userId int64) {
 	var user types.User
 	if err := json.Unmarshal(ctx.Request.Body(), &user); err != nil {
-		handleError(ctx, err, fasthttp.StatusBadRequest)
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrBadInput, fasthttp.StatusBadRequest)
 		return
 	}
 
 	user.Id = userId
 	if err := db.UpdateUser(&user); err != nil {
-		handleError(ctx, err, fasthttp.StatusBadRequest)
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrUpdateUser, fasthttp.StatusBadRequest)
 		return
 	}
 
@@ -113,7 +119,6 @@ func updateUser(ctx *fasthttp.RequestCtx, userId int64) {
 func handleError(ctx *fasthttp.RequestCtx, err error, status int) {
 	ctx.SetStatusCode(status)
 	ctx.SetContentType("application/json")
-	zap.L().Error(err.Error())
 	json.NewEncoder(ctx).Encode(types.HTTPError{
 		Error: err.Error(),
 	})
