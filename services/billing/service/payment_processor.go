@@ -238,10 +238,23 @@ func (consumer *Consumer) processPayment(data []byte) error {
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil
 			}
+
+			db.RejectPayment(msg.PaymentID, err.Error())
+
+			zap.L().Error(
+				"failed to process payment",
+				zap.Error(err),
+				zap.Int64("payment_id", msg.PaymentID),
+				zap.Int64("order_id", msg.OrderID),
+				zap.Int8("action", msg.Action),
+				zap.Int8("status", msg.Status),
+				zap.Int64s("stock_change_ids", msg.StockChangeIDs),
+			)
 			msg.Status = PaymentStatusFailed
 			produce(&msg)
 			return nil
 		}
+		db.ApprovePayment(msg.PaymentID)
 		msg.Status = PaymentStatusOK
 		produce(&msg)
 		return nil

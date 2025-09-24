@@ -6,6 +6,8 @@ import (
 	"order/types"
 	"strconv"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 var ErrMissingItemsInStock = errors.New("missing items in stock")
@@ -41,6 +43,8 @@ func CreateStockChanges(orderID int64, items []types.Item) ([]int64, error) {
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("insert stock_changes: %w", err)
 	}
+
+	zap.L().Info(fmt.Sprintf("stock_changes created for order %d", orderID), zap.Int64s("stock_change_ids", stockChangesIDs))
 
 	return stockChangesIDs, nil
 }
@@ -88,11 +92,59 @@ func buildStockChanges(orderID int64, items []types.Item) ([]types.Item, error) 
 	return stockChanges, nil
 }
 
-func RejectStockChanges(stockChangeIDs []int64) {
-	idsStr := make([]string, 0, len(stockChangeIDs))
-	for _, id := range stockChangeIDs {
-		idsStr = append(idsStr, strconv.FormatInt(id, 10))
+func buildRevertChanges(stockChangeIDs []int64) ([]string, error) {
+	changes := changesToStr(stockChangeIDs)
+	failedChanges := fmt.Sprintf(`select order_id, stock_id, quantity from stock_changes where id in (%s) and action = 'remove'`, strings.Join(changes, ","))
+
+	rows, err := GetConn().Query(failedChanges)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	values := make([]string, 0, len(stockChangeIDs))
+	for rows.Next() {
+		var orderID, stockID, quantity int64
+		if err := rows.Scan(&orderID, &stockID, &quantity); err != nil {
+			return nil, err
+		}
+
+		values = append(values, fmt.Sprintf("(%d, %d, %d, 'add')", orderID, stockID, quantity))
 	}
 
-	GetConn().Exec(fmt.Sprintf(`update stock_changes set status = 'failed' where id in (%s)`, strings.Join(idsStr, ",")))
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return values, nil
+}
+
+func RevertStockChanges(stockChangeIDs []int64) ([]int64, error) {
+	values, err := buildRevertChanges(stockChangeIDs)
+	if err != nil {
+		return nil, fmt.Errorf("build revert changes: %w", err)
+	}
+
+	query := fmt.Sprintf(`insert into stock_changes(order_id, stock_id, quantity, action) values %s returning id`, strings.Join(values, ","))
+	rows, err := GetConn().Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	newIDs := make([]int64, 0, len(stockChangeIDs))
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+
+		newIDs = append(newIDs, id)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return newIDs, nil
 }
