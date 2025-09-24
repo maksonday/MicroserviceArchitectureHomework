@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"order/types"
+
+	"go.uber.org/zap"
 )
 
 var ErrEmptyOrder = errors.New("empty order")
@@ -30,6 +32,8 @@ func CreateOrder(userID int64, order *types.Order) (int64, error) {
 		return 0, fmt.Errorf("failed to create order: %w", err)
 	}
 
+	zap.L().Sugar().Infof("order %d created", orderID)
+
 	return orderID, nil
 }
 
@@ -51,9 +55,15 @@ func ApproveOrder(orderID int64) error {
 		return fmt.Errorf("approve order: %w", err)
 	}
 
+	zap.L().Sugar().Infof("order %d approved", orderID)
+
 	return nil
 }
 
 func RejectOrder(orderID int64) {
-	GetConn().Exec(`update orders set status = 'canceled' where id = $1`, orderID)
+	if _, err := GetConn().Exec(`update orders set status = 'canceled' where id = $1`, orderID); err != nil {
+		zap.L().Sugar().Errorf("failed to reject order %d: %w", orderID, err)
+		return
+	}
+	zap.L().Sugar().Infof("order %d rejected", orderID)
 }

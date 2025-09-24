@@ -123,11 +123,10 @@ func ProcessStockChangesAsync(stockChangeIDs []int64, action int8) error {
 			actionName = "add"
 		}
 		err = fmt.Errorf(actionName+" stock items: %w", err)
-		RejectStockChanges(strings.Join(changesStr, ","), err.Error())
 		return err
 	}
 
-	ApproveStockChanges(strings.Join(changesStr, ","))
+	zap.L().Info("processed stock changes", zap.Int64s("stock_change_ids", stockChangeIDs), zap.Int8("action", action))
 
 	return nil
 }
@@ -142,39 +141,49 @@ func changesToStr(changes []int64) []string {
 }
 
 func processStockChanges(changes []types.StockChange, action int8) error {
-	query := `update stock set quantity = case %s end`
-	values := make([]string, 0, len(changes))
-	switch action {
-	case StockChangeAdd:
-		for _, change := range changes {
-			values = append(values, fmt.Sprintf(`when id = %d then quantity = quantity + %d`, change.StockId, change.Quantity))
-		}
-	case StockChangeRemove:
-		for _, change := range changes {
-			values = append(values, fmt.Sprintf(`when id = %d then quantity = quantity - %d`, change.StockId, change.Quantity))
-		}
-	default:
+	if action != StockChangeAdd && action != StockChangeRemove {
 		return ErrUnsupportedStockChangeAction
+	}
+
+	query := `update stock set quantity = (case %s end)`
+	values := make([]string, 0, len(changes))
+	operation := "+"
+	if action == StockChangeRemove {
+		operation = "-"
+	}
+
+	for _, change := range changes {
+		values = append(values, fmt.Sprintf(`when id = %d then quantity %s %d`, change.StockId, operation, change.Quantity))
 	}
 
 	if _, err := GetConn().Exec(fmt.Sprintf(query, strings.Join(values, "\t"))); err != nil {
 		return fmt.Errorf("process stock_changes: %w", err)
 	}
 
+	zap.L().Info("updated stock", zap.Any("stock_changes", changes))
+
 	return nil
 }
 
-func ApproveStockChanges(changes string) {
+func ApproveStockChanges(stockChangeIDs []int64) {
+	changes := changesToStr(stockChangeIDs)
 	if _, err := GetConn().Exec(
-		fmt.Sprintf(`update stock_changes set status = 'ok', mtime = NOW() where id in (%s)`, changes)); err != nil {
+		fmt.Sprintf(`update stock_changes set status = 'ok', mtime = NOW() where id in (%s)`, strings.Join(changes, ","))); err != nil {
 		zap.L().Error("failed to approve stock remove", zap.Error(err))
+		return
 	}
+
+	zap.L().Info("approved stock changes", zap.Int64s("stock_change_ids", stockChangeIDs))
 }
 
-func RejectStockChanges(changes, reason string) {
-	if _, err := GetConn().Exec(
-		fmt.Sprintf(`update stock_changes set status = 'failed', error = %s, mtime = NOW() where id in (%s)'`,
-			reason, changes)); err != nil {
-		zap.L().Error("failed to reject stock_change", zap.Error(err))
+func RejectStockChanges(stockChangeIDs []int64, reason string) {
+	changes := changesToStr(stockChangeIDs)
+	query := fmt.Sprintf(
+		`update stock_changes set status = 'failed', error = $1, mtime = NOW() where id in (%s)`, strings.Join(changes, ","))
+	if _, err := GetConn().Exec(query, reason); err != nil {
+		zap.L().Error("failed to reject stock_changes", zap.Error(err), zap.String("query", query))
+		return
 	}
+
+	zap.L().Info("rejected stock changes", zap.Int64s("stock_change_ids", stockChangeIDs), zap.String("reason", reason))
 }

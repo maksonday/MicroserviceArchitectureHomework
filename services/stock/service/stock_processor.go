@@ -236,10 +236,15 @@ func (consumer *Consumer) processStockChange(data []byte) error {
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil
 			}
+
+			db.RejectStockChanges(msg.StockChangeIDs, err.Error())
+			zap.L().Error("failed to process stock_changes message", zap.Error(err))
 			msg.Status = StockChangeStatusFailed
 			produce(&msg)
 			return nil
 		}
+
+		db.ApproveStockChanges(msg.StockChangeIDs)
 		msg.Status = StockChangeStatusOK
 		produce(&msg)
 		return nil

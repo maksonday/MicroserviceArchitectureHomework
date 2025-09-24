@@ -255,8 +255,14 @@ func (consumer *PaymentConsumer) processPayment(data []byte) error {
 		case Deposit:
 			// что-то пошло не так, деньги вернули, возвращаем товары на склад
 			// заказ отменится по цепочке после роллбека склада
+			newStockChangeIDs, err := db.RevertStockChanges(msg.StockChangeIDs)
+			if err != nil {
+				zap.L().Error("failed to revert stock_changes", zap.Error(err))
+				return nil
+			}
+
 			GetStockProcessor().AddMessage(&StockChangeMessage{
-				StockChangeIDs: msg.StockChangeIDs,
+				StockChangeIDs: newStockChangeIDs,
 				OrderID:        msg.OrderID,
 				Action:         StockAdd,
 				Status:         StockChangeStatusPending,
@@ -265,8 +271,14 @@ func (consumer *PaymentConsumer) processPayment(data []byte) error {
 	case PaymentStatusFailed:
 		// что-то пошло не так, деньги вернули, возвращаем товары на склад
 		// заказ отменится по цепочке после роллбека склада
+		newStockChangeIDs, err := db.RevertStockChanges(msg.StockChangeIDs)
+		if err != nil {
+			zap.L().Error("failed to revert stock_changes", zap.Error(err))
+			return nil
+		}
+
 		GetStockProcessor().AddMessage(&StockChangeMessage{
-			StockChangeIDs: msg.StockChangeIDs,
+			StockChangeIDs: newStockChangeIDs,
 			OrderID:        msg.OrderID,
 			Action:         StockAdd,
 			Status:         StockChangeStatusPending,

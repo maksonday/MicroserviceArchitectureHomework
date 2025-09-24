@@ -252,18 +252,32 @@ func (consumer *StockConsumer) processStock(data []byte) error {
 		case StockRemove:
 			paymentID, err := db.CreatePayment(msg.OrderID, msg.StockChangeIDs)
 			if err != nil {
-				msg.Action = StockAdd
-				GetStockProcessor().AddMessage(&msg)
+				zap.L().Sugar().Errorf("create payment: %w", err)
+				newStockChangeIDs, err := db.RevertStockChanges(msg.StockChangeIDs)
+				if err != nil {
+					zap.L().Error("failed to revert stock_changes", zap.Error(err))
+					return nil
+				}
+				GetStockProcessor().AddMessage(&StockChangeMessage{
+					StockChangeIDs: newStockChangeIDs,
+					OrderID:        msg.OrderID,
+					Action:         StockAdd,
+					Status:         StockChangeStatusPending,
+				})
+				return nil
 			}
+
 			GetPaymentsProcessor().AddMessage(&PaymentMessage{
 				OrderID:        msg.OrderID,
 				StockChangeIDs: msg.StockChangeIDs,
 				PaymentID:      paymentID,
 				Status:         PaymentStatusPending,
+				Action:         Pay,
 			})
 			// что-то далее по цепочке пошло не так после резерва, отменяем заказ
 		case StockAdd:
 			db.RejectOrder(msg.OrderID)
+			go NotifyUser(msg.OrderID, OrderStatusCanceled)
 		}
 		// не удалось применить изменения на складе, отменяем заказ
 	case StockChangeStatusFailed:

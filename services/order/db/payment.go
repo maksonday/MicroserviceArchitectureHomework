@@ -5,6 +5,8 @@ import (
 	"math"
 	"strconv"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 func CreatePayment(orderID int64, stockChangeIDs []int64) (int64, error) {
@@ -19,6 +21,8 @@ func CreatePayment(orderID int64, stockChangeIDs []int64) (int64, error) {
 		return 0, fmt.Errorf("create payment: %w", err)
 	}
 
+	zap.L().Sugar().Infof("payment %d created", paymentID)
+
 	return paymentID, nil
 }
 
@@ -28,7 +32,7 @@ func calculateOrderTotalPrice(stockChangeIDs []int64) (float64, error) {
 		fmt.Sprintf(`select sc.quantity, i.price from stock_changes sc 
 		join stock s on s.id = sc.stock_id 
 		join items i on i.id = s.item_id 
-		where id in (%s)`, strings.Join(changes, ",")))
+		where sc.id in (%s)`, strings.Join(changes, ",")))
 	if err != nil {
 		return 0, fmt.Errorf("failed to get stock_changes: %w", err)
 	}
@@ -52,7 +56,6 @@ func calculateOrderTotalPrice(stockChangeIDs []int64) (float64, error) {
 	}
 
 	return math.Ceil(totalPrice*100) / 100, nil
-
 }
 
 func changesToStr(changes []int64) []string {
@@ -64,6 +67,30 @@ func changesToStr(changes []int64) []string {
 	return changesStr
 }
 
-// TODO добавляем для сервиса подбора курьера
-func RejectPayment(paymentID int64) {
+func buildRevertPayment(paymentID int64) (int64, float64, error) {
+	var (
+		orderID int64
+		amount  float64
+	)
+	if err := GetConn().QueryRow(`select order_id, amount from payments where id = $1 and action = 'pay'`, paymentID).
+		Scan(&orderID, &amount); err != nil {
+		return 0, 0, err
+	}
+
+	return orderID, amount, nil
+}
+
+func RevertPayment(paymentID int64) (int64, error) {
+	orderID, amount, err := buildRevertPayment(paymentID)
+	if err != nil {
+		return 0, fmt.Errorf("build revert payment: %w", err)
+	}
+
+	var newID int64
+	if err := GetConn().QueryRow(
+		`insert into payments(order_id, amount, action) values ($1, $2, 'deposit') returning id`, orderID, amount).Scan(&newID); err != nil {
+		return 0, err
+	}
+
+	return newID, nil
 }
