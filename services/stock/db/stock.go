@@ -1,9 +1,12 @@
 package db
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"stock/types"
+	"strconv"
+	"strings"
 
 	"go.uber.org/zap"
 )
@@ -64,41 +67,114 @@ func removeStockItems(stockChange *types.StockChange) error {
 	return nil
 }
 
-var ErrNotEnoughItems = errors.New("not enough items in stock")
+var (
+	ErrNotEnoughItems = errors.New("not enough items in stock")
+)
 
-func ProcessStockChangeAsync(stockChangeID, stockID, orderID int64) error {
-	var (
-		quantity int64
-		needed   int64
-	)
-	if err := GetConn().QueryRow(
-		`select s.quantity, sc.quantity needed from stock s join stock_changes sc on sc.stock_id = s.id 
-		where s.id = $1 and sc.id = $2 and sc.order_id = $3 and sc.status = 'pending'`,
-		stockID, stockChangeID, orderID).Scan(&quantity, &needed); err != nil {
-		return fmt.Errorf("get order items quantity: %w", err)
+func ProcessStockChangesAsync(stockChangeIDs []int64, action int8) error {
+	if action != StockChangeAdd && action != StockChangeRemove {
+		return ErrUnsupportedStockChangeAction
 	}
 
-	if needed > quantity {
-		return ErrNotEnoughItems
+	changesStr := changesToStr(stockChangeIDs)
+	query := `select s.quantity, sc.quantity, s.id needed from stock s join stock_changes sc on sc.stock_id = s.id 
+		where sc.id in (%s) and sc.status = 'pending'`
+
+	rows, err := GetConn().Query(fmt.Sprintf(query, strings.Join(changesStr, ",")))
+	if err != nil {
+		return fmt.Errorf("get stock_changes: %w", err)
+	}
+	defer rows.Close()
+
+	changes := make([]types.StockChange, 0, len(stockChangeIDs))
+	for rows.Next() {
+		var (
+			quantity int64
+			needed   int64
+			stockID  int64
+		)
+
+		if err := rows.Scan(&quantity, &needed, &stockID); err != nil {
+			return fmt.Errorf("get order items quantity: %w", err)
+		}
+
+		if needed > quantity {
+			return ErrNotEnoughItems
+		}
+
+		changes = append(changes, types.StockChange{
+			StockId:  stockID,
+			Quantity: needed,
+		})
 	}
 
-	if err := removeStockItems(&types.StockChange{StockId: stockID, Quantity: needed}); err != nil {
-		return fmt.Errorf("remove stock items: %w", err)
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("rows scan: %w", err)
 	}
 
-	if _, err := GetConn().Exec(
-		`update stock_changes set status = 'ok', mtime = NOW() where id = $1 and status = 'pending'`, stockChangeID); err != nil {
-		addStockItems(&types.StockChange{StockId: stockID, Quantity: needed})
-		return fmt.Errorf("update stock_change status: %w", err)
+	if len(changes) == 0 {
+		return sql.ErrNoRows
+	}
+
+	// уменьшаем кол-во вещей на складе, если все ок, иначе возвращаем обратно
+	if err := processStockChanges(changes, action); err != nil {
+		actionName := "remove"
+		if action == StockChangeAdd {
+			actionName = "add"
+		}
+		err = fmt.Errorf(actionName+" stock items: %w", err)
+		RejectStockChanges(strings.Join(changesStr, ","), err.Error())
+		return err
+	}
+
+	ApproveStockChanges(strings.Join(changesStr, ","))
+
+	return nil
+}
+
+func changesToStr(changes []int64) []string {
+	changesStr := make([]string, 0, len(changes))
+	for _, id := range changes {
+		changesStr = append(changesStr, strconv.FormatInt(id, 10))
+	}
+
+	return changesStr
+}
+
+func processStockChanges(changes []types.StockChange, action int8) error {
+	query := `update stock set quantity = case %s end`
+	values := make([]string, 0, len(changes))
+	switch action {
+	case StockChangeAdd:
+		for _, change := range changes {
+			values = append(values, fmt.Sprintf(`when id = %d then quantity = quantity + %d`, change.StockId, change.Quantity))
+		}
+	case StockChangeRemove:
+		for _, change := range changes {
+			values = append(values, fmt.Sprintf(`when id = %d then quantity = quantity - %d`, change.StockId, change.Quantity))
+		}
+	default:
+		return ErrUnsupportedStockChangeAction
+	}
+
+	if _, err := GetConn().Exec(fmt.Sprintf(query, strings.Join(values, "\t"))); err != nil {
+		return fmt.Errorf("process stock_changes: %w", err)
 	}
 
 	return nil
 }
 
-func RejectStockChange(stockChangeID int64, reason string) {
+func ApproveStockChanges(changes string) {
 	if _, err := GetConn().Exec(
-		`update stock_changes set status = 'failed', error = $1, mtime = NOW() where id = $2 and status = 'pending'`,
-		reason, stockChangeID); err != nil {
+		fmt.Sprintf(`update stock_changes set status = 'ok', mtime = NOW() where id in (%s)`, changes)); err != nil {
+		zap.L().Error("failed to approve stock remove", zap.Error(err))
+	}
+}
+
+func RejectStockChanges(changes, reason string) {
+	if _, err := GetConn().Exec(
+		fmt.Sprintf(`update stock_changes set status = 'failed', error = %s, mtime = NOW() where id in (%s)'`,
+			reason, changes)); err != nil {
 		zap.L().Error("failed to reject stock_change", zap.Error(err))
 	}
 }

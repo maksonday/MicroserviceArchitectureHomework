@@ -1,12 +1,11 @@
 package service
 
 import (
-	"billing/config"
-	"billing/db"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
+	"order/config"
+	"order/db"
 	"os"
 	"os/signal"
 	"sync"
@@ -16,47 +15,65 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	paymentsProcessorOnce sync.Once
+	paymentsProcessor     *PaymentsProcessor
+)
+
 type PaymentsProcessor struct {
 	consumer     sarama.ConsumerGroup
 	consumeTopic string
 
 	producer     sarama.AsyncProducer
 	produceTopic string
+
+	queuedMessages chan *PaymentMessage
 }
 
-func NewPaymentsProcessor(config *config.Config) *PaymentsProcessor {
-	cConfig := sarama.NewConfig()
-	version, err := sarama.ParseKafkaVersion(config.ConsumerConfig.Version)
-	if err != nil {
-		zap.L().Fatal("failed to parse kafka version", zap.Error(err))
-	}
-	cConfig.Version = version
-	cConfig.Net.TLS.Enable = false
+func NewPaymentsProcessor(config *config.Config) {
+	paymentsProcessorOnce.Do(func() {
+		cConfig := sarama.NewConfig()
+		version, err := sarama.ParseKafkaVersion(config.PaymentsConsumerConfig.Version)
+		if err != nil {
+			zap.L().Fatal("failed to parse kafka version", zap.Error(err))
+		}
+		cConfig.Version = version
+		cConfig.Net.TLS.Enable = false
 
-	c, err := sarama.NewConsumerGroup(config.ConsumerConfig.Brokers, config.ConsumerConfig.GroupID, cConfig)
-	if err != nil {
-		zap.L().Fatal("failed to start consumer", zap.Error(err))
-	}
+		c, err := sarama.NewConsumerGroup(config.PaymentsConsumerConfig.Brokers, config.PaymentsConsumerConfig.GroupID, cConfig)
+		if err != nil {
+			zap.L().Fatal("failed to start consumer", zap.Error(err))
+		}
 
-	pConfig := sarama.NewConfig()
-	version, err = sarama.ParseKafkaVersion(config.ProducerConfig.Version)
-	if err != nil {
-		zap.L().Fatal("failed to parse kafka version", zap.Error(err))
-	}
-	pConfig.Version = version
-	pConfig.Net.TLS.Enable = false
+		pConfig := sarama.NewConfig()
+		version, err = sarama.ParseKafkaVersion(config.PaymentsProducerConfig.Version)
+		if err != nil {
+			zap.L().Fatal("failed to parse kafka version", zap.Error(err))
+		}
+		pConfig.Version = version
+		pConfig.Net.TLS.Enable = false
 
-	p, err := sarama.NewAsyncProducer(config.ProducerConfig.Brokers, pConfig)
-	if err != nil {
-		zap.L().Fatal("failed to start producer", zap.Error(err))
-	}
+		p, err := sarama.NewAsyncProducer(config.PaymentsProducerConfig.Brokers, pConfig)
+		if err != nil {
+			zap.L().Fatal("failed to start producer", zap.Error(err))
+		}
 
-	return &PaymentsProcessor{
-		consumer:     c,
-		consumeTopic: config.ConsumerConfig.Topic,
-		producer:     p,
-		produceTopic: config.ProducerConfig.Topic,
-	}
+		paymentsProcessor = &PaymentsProcessor{
+			consumer:       c,
+			consumeTopic:   config.PaymentsConsumerConfig.Topic,
+			producer:       p,
+			produceTopic:   config.PaymentsProducerConfig.Topic,
+			queuedMessages: make(chan *PaymentMessage, 256),
+		}
+	})
+}
+
+func GetPaymentsProcessor() *PaymentsProcessor {
+	return paymentsProcessor
+}
+
+func (p *PaymentsProcessor) AddMessage(msg *PaymentMessage) {
+	p.queuedMessages <- msg
 }
 
 func (p *PaymentsProcessor) Run() {
@@ -66,9 +83,8 @@ func (p *PaymentsProcessor) Run() {
 
 	keepRunning := true
 
-	consumer := Consumer{
-		ready:             make(chan bool),
-		processedMessages: make(chan *PaymentMessage, 256),
+	consumer := PaymentConsumer{
+		ready: make(chan bool),
 	}
 
 	wg := &sync.WaitGroup{}
@@ -111,7 +127,7 @@ func (p *PaymentsProcessor) Run() {
 	ProducerLoop:
 		for {
 			select {
-			case msg := <-consumer.processedMessages:
+			case msg := <-p.queuedMessages:
 				bytes, err := json.Marshal(msg)
 				if err != nil {
 					zap.L().Error("failed to marshal payment message", zap.Error(err))
@@ -147,21 +163,20 @@ func (p *PaymentsProcessor) Run() {
 	}
 }
 
-// Consumer represents a Sarama consumer group consumer
-type Consumer struct {
-	ready             chan bool
-	processedMessages chan *PaymentMessage
+// PaymentConsumer represents a Sarama consumer group consumer
+type PaymentConsumer struct {
+	ready chan bool
 }
 
 // Setup is run at the beginning of a new session, before ConsumeClaim
-func (consumer *Consumer) Setup(sarama.ConsumerGroupSession) error {
+func (consumer *PaymentConsumer) Setup(sarama.ConsumerGroupSession) error {
 	// Mark the consumer as ready
 	close(consumer.ready)
 	return nil
 }
 
 // Cleanup is run at the end of a session, once all ConsumeClaim goroutines have exited
-func (consumer *Consumer) Cleanup(sarama.ConsumerGroupSession) error {
+func (consumer *PaymentConsumer) Cleanup(sarama.ConsumerGroupSession) error {
 	return nil
 }
 
@@ -187,7 +202,7 @@ type PaymentMessage struct {
 // ConsumeClaim must start a consumer loop of ConsumerGroupClaim's Messages().
 // Once the Messages() channel is closed, the Handler must finish its processing
 // loop and exit.
-func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+func (consumer *PaymentConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	// NOTE:
 	// Do not move the code below to a goroutine.
 	// The `ConsumeClaim` itself is called within a goroutine, see:
@@ -213,39 +228,52 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 	}
 }
 
-func (consumer *Consumer) processPayment(data []byte) error {
+func (consumer *PaymentConsumer) processPayment(data []byte) error {
 	var msg PaymentMessage
 	if err := json.Unmarshal(data, &msg); err != nil {
 		return err
 	}
 
-	if msg.Status != PaymentStatusPending || msg.PaymentID == 0 || msg.OrderID == 0 {
+	if msg.Status == PaymentStatusPending || msg.PaymentID == 0 {
 		zap.L().Warn("received bad payment message",
 			zap.Int64("payment_id", msg.PaymentID),
-			zap.Int64("order_id", msg.OrderID),
 			zap.Int8("status", msg.Status))
 		return nil
 	}
 
-	produce := func(msg *PaymentMessage) {
-		zap.L().Sugar().Infof("processed payment message: %+v", *msg)
-		consumer.processedMessages <- msg
+	defer func() {
+		zap.L().Sugar().Infof("processed payment message: %+v", msg)
+	}()
+
+	switch msg.Status {
+	case PaymentStatusOK:
+		switch msg.Action {
+		case Pay:
+			// подтверждаем заказ и отправляем уведомление на почту
+			db.ApproveOrder(msg.OrderID)
+			go NotifyUser(msg.OrderID, OrderStatusApproved)
+		case Deposit:
+			// что-то пошло не так, деньги вернули, возвращаем товары на склад
+			// заказ отменится по цепочке после роллбека склада
+			GetStockProcessor().AddMessage(&StockChangeMessage{
+				StockChangeIDs: msg.StockChangeIDs,
+				OrderID:        msg.OrderID,
+				Action:         StockAdd,
+				Status:         StockChangeStatusPending,
+			})
+		}
+	case PaymentStatusFailed:
+		// что-то пошло не так, деньги вернули, возвращаем товары на склад
+		// заказ отменится по цепочке после роллбека склада
+		GetStockProcessor().AddMessage(&StockChangeMessage{
+			StockChangeIDs: msg.StockChangeIDs,
+			OrderID:        msg.OrderID,
+			Action:         StockAdd,
+			Status:         StockChangeStatusPending,
+		})
+	default:
+		zap.L().Sugar().Errorf("unknown payment msg status: %d", msg.Status)
 	}
 
-	switch msg.Action {
-	case Deposit, Pay:
-		if err := db.ProcessPayment(msg.PaymentID, msg.Action); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return nil
-			}
-			msg.Status = PaymentStatusFailed
-			produce(&msg)
-			return nil
-		}
-		msg.Status = PaymentStatusOK
-		produce(&msg)
-		return nil
-	default:
-		return nil
-	}
+	return nil
 }

@@ -2,13 +2,12 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
+	"order/config"
+	"order/db"
 	"os"
 	"os/signal"
-	"stock/config"
-	"stock/db"
 	"sync"
 	"syscall"
 
@@ -16,59 +15,76 @@ import (
 	"go.uber.org/zap"
 )
 
-type StockChangesProcessor struct {
+var (
+	stockProcessorOnce sync.Once
+	stockProcessor     *StockProcessor
+)
+
+type StockProcessor struct {
 	consumer     sarama.ConsumerGroup
 	consumeTopic string
 
 	producer     sarama.AsyncProducer
 	produceTopic string
+
+	queuedMessages chan *StockChangeMessage
 }
 
-func NewStockChangesProcessor(config *config.Config) *StockChangesProcessor {
-	cConfig := sarama.NewConfig()
-	version, err := sarama.ParseKafkaVersion(config.ConsumerConfig.Version)
-	if err != nil {
-		zap.L().Fatal("failed to parse kafka version", zap.Error(err))
-	}
-	cConfig.Version = version
-	cConfig.Net.TLS.Enable = false
+func NewStockProcessor(config *config.Config) {
+	stockProcessorOnce.Do(func() {
+		cConfig := sarama.NewConfig()
+		version, err := sarama.ParseKafkaVersion(config.StockConsumerConfig.Version)
+		if err != nil {
+			zap.L().Fatal("failed to parse kafka version", zap.Error(err))
+		}
+		cConfig.Version = version
+		cConfig.Net.TLS.Enable = false
 
-	c, err := sarama.NewConsumerGroup(config.ConsumerConfig.Brokers, config.ConsumerConfig.GroupID, cConfig)
-	if err != nil {
-		zap.L().Fatal("failed to start consumer", zap.Error(err))
-	}
+		c, err := sarama.NewConsumerGroup(config.StockConsumerConfig.Brokers, config.StockConsumerConfig.GroupID, cConfig)
+		if err != nil {
+			zap.L().Fatal("failed to start consumer", zap.Error(err))
+		}
 
-	pConfig := sarama.NewConfig()
-	version, err = sarama.ParseKafkaVersion(config.ProducerConfig.Version)
-	if err != nil {
-		zap.L().Fatal("failed to parse kafka version", zap.Error(err))
-	}
-	pConfig.Version = version
-	pConfig.Net.TLS.Enable = false
+		pConfig := sarama.NewConfig()
+		version, err = sarama.ParseKafkaVersion(config.StockProducerConfig.Version)
+		if err != nil {
+			zap.L().Fatal("failed to parse kafka version", zap.Error(err))
+		}
+		pConfig.Version = version
+		pConfig.Net.TLS.Enable = false
 
-	p, err := sarama.NewAsyncProducer(config.ProducerConfig.Brokers, pConfig)
-	if err != nil {
-		zap.L().Fatal("failed to start producer", zap.Error(err))
-	}
+		p, err := sarama.NewAsyncProducer(config.StockProducerConfig.Brokers, pConfig)
+		if err != nil {
+			zap.L().Fatal("failed to start producer", zap.Error(err))
+		}
 
-	return &StockChangesProcessor{
-		consumer:     c,
-		consumeTopic: config.ConsumerConfig.Topic,
-		producer:     p,
-		produceTopic: config.ProducerConfig.Topic,
-	}
+		stockProcessor = &StockProcessor{
+			consumer:       c,
+			consumeTopic:   config.StockConsumerConfig.Topic,
+			producer:       p,
+			produceTopic:   config.StockProducerConfig.Topic,
+			queuedMessages: make(chan *StockChangeMessage, 256),
+		}
+	})
 }
 
-func (p *StockChangesProcessor) Run() {
-	zap.L().Info("stock_change processor started")
+func GetStockProcessor() *StockProcessor {
+	return stockProcessor
+}
+
+func (p *StockProcessor) AddMessage(msg *StockChangeMessage) {
+	p.queuedMessages <- msg
+}
+
+func (p *StockProcessor) Run() {
+	zap.L().Info("stock processor started")
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	keepRunning := true
 
-	consumer := Consumer{
-		ready:             make(chan bool),
-		processedMessages: make(chan *StockChangeMessage, 256),
+	consumer := StockConsumer{
+		ready: make(chan bool),
 	}
 
 	wg := &sync.WaitGroup{}
@@ -111,10 +127,10 @@ func (p *StockChangesProcessor) Run() {
 	ProducerLoop:
 		for {
 			select {
-			case msg := <-consumer.processedMessages:
+			case msg := <-p.queuedMessages:
 				bytes, err := json.Marshal(msg)
 				if err != nil {
-					zap.L().Error("failed to marshal stock_change message", zap.Error(err))
+					zap.L().Error("failed to marshal stock message", zap.Error(err))
 					continue
 				}
 				zap.L().Sugar().Infof("producing message: %s", string(bytes))
@@ -147,21 +163,20 @@ func (p *StockChangesProcessor) Run() {
 	}
 }
 
-// Consumer represents a Sarama consumer group consumer
-type Consumer struct {
-	ready             chan bool
-	processedMessages chan *StockChangeMessage
+// StockConsumer represents a Sarama consumer group consumer
+type StockConsumer struct {
+	ready chan bool
 }
 
 // Setup is run at the beginning of a new session, before ConsumeClaim
-func (consumer *Consumer) Setup(sarama.ConsumerGroupSession) error {
+func (consumer *StockConsumer) Setup(sarama.ConsumerGroupSession) error {
 	// Mark the consumer as ready
 	close(consumer.ready)
 	return nil
 }
 
 // Cleanup is run at the end of a session, once all ConsumeClaim goroutines have exited
-func (consumer *Consumer) Cleanup(sarama.ConsumerGroupSession) error {
+func (consumer *StockConsumer) Cleanup(sarama.ConsumerGroupSession) error {
 	return nil
 }
 
@@ -186,7 +201,7 @@ type StockChangeMessage struct {
 // ConsumeClaim must start a consumer loop of ConsumerGroupClaim's Messages().
 // Once the Messages() channel is closed, the Handler must finish its processing
 // loop and exit.
-func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+func (consumer *StockConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	// NOTE:
 	// Do not move the code below to a goroutine.
 	// The `ConsumeClaim` itself is called within a goroutine, see:
@@ -199,8 +214,8 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				return nil
 			}
 			zap.L().Sugar().Infof("message claimed: value = %s, timestamp = %v, topic = %s", string(message.Value), message.Timestamp, message.Topic)
-			if err := consumer.processStockChange(message.Value); err != nil {
-				zap.L().Error("failed to process stock_change message", zap.Error(err))
+			if err := consumer.processStock(message.Value); err != nil {
+				zap.L().Error("failed to process stock message", zap.Error(err))
 			}
 			session.MarkMessage(message, "")
 		// Should return when `session.Context()` is done.
@@ -212,38 +227,50 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 	}
 }
 
-func (consumer *Consumer) processStockChange(data []byte) error {
+func (consumer *StockConsumer) processStock(data []byte) error {
 	var msg StockChangeMessage
 	if err := json.Unmarshal(data, &msg); err != nil {
 		return err
 	}
 
-	if msg.Status != StockChangeStatusPending || len(msg.StockChangeIDs) == 0 {
+	if msg.Status == StockChangeStatusPending || msg.OrderID == 0 || len(msg.StockChangeIDs) == 0 {
 		zap.L().Warn("received bad stock_change message",
 			zap.Int64s("stock_change_ids", msg.StockChangeIDs),
 			zap.Int8("status", msg.Status))
 		return nil
 	}
 
-	produce := func(msg *StockChangeMessage) {
-		zap.L().Sugar().Infof("processed stock_change message: %+v", *msg)
-		consumer.processedMessages <- msg
+	defer func() {
+		zap.L().Sugar().Infof("processed stock message: %+v", msg)
+	}()
+
+	switch msg.Status {
+	// успешно применили изменения на складе
+	case StockChangeStatusOK:
+		switch msg.Action {
+		// зарезервировали товары на складе, создаем платеж
+		case StockRemove:
+			paymentID, err := db.CreatePayment(msg.OrderID, msg.StockChangeIDs)
+			if err != nil {
+				msg.Action = StockAdd
+				GetStockProcessor().AddMessage(&msg)
+			}
+			GetPaymentsProcessor().AddMessage(&PaymentMessage{
+				OrderID:        msg.OrderID,
+				StockChangeIDs: msg.StockChangeIDs,
+				PaymentID:      paymentID,
+				Status:         PaymentStatusPending,
+			})
+			// что-то далее по цепочке пошло не так после резерва, отменяем заказ
+		case StockAdd:
+			db.RejectOrder(msg.OrderID)
+		}
+		// не удалось применить изменения на складе, отменяем заказ
+	case StockChangeStatusFailed:
+		db.RejectOrder(msg.OrderID)
+	default:
+		zap.L().Sugar().Errorf("unknown stock_change msg status: %d", msg.Status)
 	}
 
-	switch msg.Action {
-	case StockAdd, StockRemove:
-		if err := db.ProcessStockChangesAsync(msg.StockChangeIDs, msg.Action); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return nil
-			}
-			msg.Status = StockChangeStatusFailed
-			produce(&msg)
-			return nil
-		}
-		msg.Status = StockChangeStatusOK
-		produce(&msg)
-		return nil
-	default:
-		return nil
-	}
+	return nil
 }
