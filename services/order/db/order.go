@@ -11,6 +11,15 @@ import (
 
 var ErrEmptyOrder = errors.New("empty order")
 
+func GetUserByOrderID(orderID int64) (int64, error) {
+	var userID int64
+	if err := GetConn().QueryRow(`select user_id from orders where id = $1`, orderID).Scan(&userID); err != nil {
+		return 0, err
+	}
+
+	return userID, nil
+}
+
 func GetOrders(userID int64) ([]types.Order, error) {
 	rows, err := GetConn().Query(`select id, items, status from orders where user_id = $1`, userID)
 	if err != nil {
