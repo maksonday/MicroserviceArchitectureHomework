@@ -1,6 +1,11 @@
 package service
 
-import "go.uber.org/zap"
+import (
+	"fmt"
+	"order/db"
+
+	"go.uber.org/zap"
+)
 
 const (
 	OrderStatusPending = iota
@@ -10,5 +15,27 @@ const (
 )
 
 func NotifyUser(orderID int64, status int8) {
-	zap.L().Sugar().Infof("notify user: orderID %d, status %d", orderID, status)
+	userID, err := db.GetUserByOrderID(orderID)
+	if err != nil {
+		zap.L().Error("get user by order id", zap.Error(err))
+	}
+
+	var statusName string
+	switch status {
+	case OrderStatusPending:
+		statusName = "pending"
+	case OrderStatusApproved:
+		statusName = "approved"
+	case OrderStatusCanceled:
+		statusName = "canceled"
+	case OrderStatusDelivered:
+		statusName = "delivered"
+	}
+
+	GetNotificationsProcessor().AddMessage(&NotificationMessage{
+		UserID:  userID,
+		Message: fmt.Sprintf("Order #%d status: %s", orderID, statusName),
+	})
+
+	zap.L().Sugar().Infof("notify user: orderID %d, status %s", orderID, statusName)
 }

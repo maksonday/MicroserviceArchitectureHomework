@@ -52,6 +52,11 @@ func main() {
 		service.GetStockProcessor().Run()
 	}()
 
+	go func() {
+		service.NewNotificationsProcessor(config)
+		service.GetNotificationsProcessor().Run()
+	}()
+
 	server := service.NewServer(config)
 
 	log.Fatalf("serve: %s", server.ListenAndServe(":"+config.ListenPort))

@@ -64,18 +64,19 @@ func NewKafkaProducerConfig() *KafkaProducerConfig {
 }
 
 type Config struct {
-	BasePath               string               `toml:"base-path"`
-	AuthAddr               string               `toml:"auth-addr"`
-	ListenPort             string               `toml:"listen-port"`
-	LogLevel               string               `toml:"log-level"`
-	LogFile                string               `toml:"log-file"`
-	ServerConfig           *ServerConfig        `toml:"server-config"`
-	DBConfig               *DBConfig            `toml:"db-config"`
-	RedisConfig            *RedisConfig         `toml:"redis-config"`
-	PaymentsConsumerConfig *KafkaConsumerConfig `toml:"payments-consumer-config"`
-	PaymentsProducerConfig *KafkaProducerConfig `toml:"payments-producer-config"`
-	StockConsumerConfig    *KafkaConsumerConfig `toml:"stock-consumer-config"`
-	StockProducerConfig    *KafkaProducerConfig `toml:"stock-producer-config"`
+	BasePath                    string               `toml:"base-path"`
+	AuthAddr                    string               `toml:"auth-addr"`
+	ListenPort                  string               `toml:"listen-port"`
+	LogLevel                    string               `toml:"log-level"`
+	LogFile                     string               `toml:"log-file"`
+	ServerConfig                *ServerConfig        `toml:"server-config"`
+	DBConfig                    *DBConfig            `toml:"db-config"`
+	RedisConfig                 *RedisConfig         `toml:"redis-config"`
+	PaymentsConsumerConfig      *KafkaConsumerConfig `toml:"payments-consumer-config"`
+	PaymentsProducerConfig      *KafkaProducerConfig `toml:"payments-producer-config"`
+	StockConsumerConfig         *KafkaConsumerConfig `toml:"stock-consumer-config"`
+	StockProducerConfig         *KafkaProducerConfig `toml:"stock-producer-config"`
+	NotificationsProducerConfig *KafkaProducerConfig `toml:"notifications-producer-config"`
 }
 
 func NewConfig() *Config {
