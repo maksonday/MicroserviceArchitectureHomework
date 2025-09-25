@@ -3,7 +3,7 @@ package db
 import "stock/types"
 
 func GetItems() ([]types.Item, error) {
-	rows, err := GetConn().Query("SELECT id, name, description, price FROM items")
+	rows, err := GetConn().Query("SELECT i.id, i.name, i.description, i.price, s.quantity FROM items i join stock s on s.item_id = i.id")
 	if err != nil {
 		return nil, err
 	}
@@ -12,7 +12,7 @@ func GetItems() ([]types.Item, error) {
 	var items []types.Item
 	for rows.Next() {
 		var item types.Item
-		if err := rows.Scan(&item.Id, &item.Name, &item.Description, &item.Price); err != nil {
+		if err := rows.Scan(&item.Id, &item.Name, &item.Description, &item.Price, &item.Quantity); err != nil {
 			return nil, err
 		}
 		items = append(items, item)

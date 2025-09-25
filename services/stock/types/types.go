@@ -9,6 +9,7 @@ type Item struct {
 	Name        string  `db:"name" json:"name"`
 	Description string  `db:"description" json:"description"`
 	Price       float64 `db:"price" json:"price"`
+	Quantity    int64   `json:"quantity,omitempty"`
 }
 
 type StockChange struct {
