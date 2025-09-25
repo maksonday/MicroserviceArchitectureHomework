@@ -77,7 +77,7 @@ func ProcessStockChangesAsync(stockChangeIDs []int64, action int8) error {
 	}
 
 	changesStr := changesToStr(stockChangeIDs)
-	query := `select s.quantity, sc.quantity, s.id needed from stock s join stock_changes sc on sc.stock_id = s.id 
+	query := `select s.quantity, sc.quantity, s.id from stock s join stock_changes sc on sc.stock_id = s.id 
 		where sc.id in (%s) and sc.status = 'pending'`
 
 	rows, err := GetConn().Query(fmt.Sprintf(query, strings.Join(changesStr, ",")))
@@ -145,7 +145,12 @@ func processStockChanges(changes []types.StockChange, action int8) error {
 		return ErrUnsupportedStockChangeAction
 	}
 
-	query := `update stock set quantity = (case %s end)`
+	idsStr := make([]string, 0, len(changes))
+	for _, ch := range changes {
+		idsStr = append(idsStr, strconv.FormatInt(ch.StockId, 10))
+	}
+
+	query := `update stock set quantity = (case %s end) where id in (%s)`
 	values := make([]string, 0, len(changes))
 	operation := "+"
 	if action == StockChangeRemove {
@@ -156,7 +161,7 @@ func processStockChanges(changes []types.StockChange, action int8) error {
 		values = append(values, fmt.Sprintf(`when id = %d then quantity %s %d`, change.StockId, operation, change.Quantity))
 	}
 
-	if _, err := GetConn().Exec(fmt.Sprintf(query, strings.Join(values, "\t"))); err != nil {
+	if _, err := GetConn().Exec(fmt.Sprintf(query, strings.Join(values, "\t"), strings.Join(idsStr, ","))); err != nil {
 		return fmt.Errorf("process stock_changes: %w", err)
 	}
 
