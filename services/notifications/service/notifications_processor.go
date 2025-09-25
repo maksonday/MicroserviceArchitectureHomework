@@ -116,6 +116,7 @@ func (consumer *Consumer) Cleanup(sarama.ConsumerGroupSession) error {
 
 type NotificationMessage struct {
 	UserID  int64  `json:"user_id"`
+	OrderID int64  `json:"order_id"`
 	Message string `json:"message"`
 }
 
@@ -161,7 +162,7 @@ func (consumer *Consumer) processNotification(data []byte) error {
 		return nil
 	}
 
-	db.CreateNotification(msg.UserID, msg.Message)
+	db.CreateNotification(msg.UserID, msg.OrderID, msg.Message)
 
 	return nil
 }

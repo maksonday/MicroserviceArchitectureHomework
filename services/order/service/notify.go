@@ -35,6 +35,7 @@ func NotifyUser(orderID int64, status int8) {
 	GetNotificationsProcessor().AddMessage(&NotificationMessage{
 		UserID:  userID,
 		Message: fmt.Sprintf("Order #%d status: %s", orderID, statusName),
+		OrderID: orderID,
 	})
 
 	zap.L().Sugar().Infof("notify user: orderID %d, status %s", orderID, statusName)

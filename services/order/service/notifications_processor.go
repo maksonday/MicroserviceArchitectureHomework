@@ -27,6 +27,7 @@ type NotificationsProcessor struct {
 
 type NotificationMessage struct {
 	UserID  int64  `json:"user_id"`
+	OrderID int64  `json:"order_id"`
 	Message string `json:"message"`
 }
 
