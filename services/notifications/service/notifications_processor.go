@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"notifications/config"
+	"notifications/db"
 	"os"
 	"os/signal"
 	"sync"
@@ -159,6 +160,8 @@ func (consumer *Consumer) processNotification(data []byte) error {
 			zap.String("message", msg.Message))
 		return nil
 	}
+
+	db.CreateNotification(msg.UserID, msg.Message)
 
 	return nil
 }

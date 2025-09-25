@@ -64,7 +64,7 @@ type Config struct {
 
 func NewConfig() *Config {
 	return &Config{
-		BasePath:   "stock",
+		BasePath:   "notifications",
 		AuthAddr:   "arch.homework/auth",
 		ListenPort: "8000",
 		LogLevel:   "info",
