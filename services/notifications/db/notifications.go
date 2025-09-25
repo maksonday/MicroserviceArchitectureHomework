@@ -1,6 +1,10 @@
 package db
 
-import "notifications/types"
+import (
+	"notifications/types"
+
+	"go.uber.org/zap"
+)
 
 func GetNotificationsByUserID(userID int64) ([]types.Notification, error) {
 	rows, err := GetConn().Query(`select message from notifications where user_id = $1`, userID)
@@ -26,4 +30,10 @@ func GetNotificationsByUserID(userID int64) ([]types.Notification, error) {
 	}
 
 	return messages, nil
+}
+
+func CreateNotification(userID int64, msg string) {
+	if _, err := GetConn().Exec(`insert into notifications(user_id, message) values($1, $2)`, userID, msg); err != nil {
+		zap.L().Error("failed to insert notification", zap.Error(err))
+	}
 }
