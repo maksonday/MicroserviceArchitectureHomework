@@ -32,8 +32,8 @@ func GetNotificationsByUserID(userID int64) ([]types.Notification, error) {
 	return messages, nil
 }
 
-func CreateNotification(userID int64, msg string) {
-	if _, err := GetConn().Exec(`insert into notifications(user_id, message) values($1, $2)`, userID, msg); err != nil {
+func CreateNotification(userID, orderID int64, msg string) {
+	if _, err := GetConn().Exec(`insert into notifications(user_id, order_id, message) values($1, $2, $3)`, userID, orderID, msg); err != nil {
 		zap.L().Error("failed to insert notification", zap.Error(err))
 	}
 }
