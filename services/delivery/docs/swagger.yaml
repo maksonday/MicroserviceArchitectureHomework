@@ -1,0 +1,114 @@
+definitions:
+  types.BalanceResponse:
+    properties:
+      balance:
+        type: number
+    type: object
+  types.HTTPError:
+    properties:
+      error:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: This is a billing service API.
+  license:
+    name: Apache 2.0
+  termsOfService: http://swagger.io/terms/
+  title: Billing API
+  version: "1.0"
+paths:
+  /add_money:
+    post:
+      consumes:
+      - application/json
+      description: add money
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+      summary: add money
+      tags:
+      - billing
+  /create_account:
+    get:
+      description: create account
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+      summary: create account
+      tags:
+      - billing
+  /get_balance:
+    get:
+      description: get balance
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.BalanceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.HTTPError'
+      summary: get balance
+      tags:
+      - billing
+swagger: "2.0"

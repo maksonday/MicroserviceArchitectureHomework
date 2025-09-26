@@ -95,5 +95,5 @@ func RejectPayment(paymentID int64, reason string) {
 		return
 	}
 
-	zap.L().Info("payment rejected", zap.Int64("payment_id", paymentID))
+	zap.L().Info("payment rejected", zap.Int64("payment_id", paymentID), zap.String("reason", reason))
 }

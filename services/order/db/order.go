@@ -55,7 +55,7 @@ func GetOrders(userID int64) ([]types.Order, error) {
 	return orders, nil
 }
 
-func CreateOrder(userID int64, order *types.Order) (int64, error) {
+func CreateOrder(userID, mask int64, order *types.Order) (int64, error) {
 	if len(order.Items) == 0 {
 		return 0, ErrEmptyOrder
 	}
@@ -72,7 +72,8 @@ func CreateOrder(userID int64, order *types.Order) (int64, error) {
 
 	var orderID int64
 	if err := GetConn().QueryRow(
-		`insert into orders(user_id, items) values($1, $2) returning id`, userID, string(packedItems)).Scan(&orderID); err != nil {
+		`insert into orders(user_id, items, hour_mask) values($1, $2, $3) returning id`, userID, string(packedItems), mask).
+		Scan(&orderID); err != nil {
 		return 0, fmt.Errorf("failed to create order: %w", err)
 	}
 
