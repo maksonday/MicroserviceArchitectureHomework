@@ -16,74 +16,74 @@ import (
 )
 
 var (
-	paymentsProcessorOnce sync.Once
-	paymentsProcessor     *PaymentsProcessor
+	courReserveProcessorOnce sync.Once
+	courReserveProcessor     *CourReserveProcessor
 )
 
-type PaymentsProcessor struct {
+type CourReserveProcessor struct {
 	consumer     sarama.ConsumerGroup
 	consumeTopic string
 
 	producer     sarama.AsyncProducer
 	produceTopic string
 
-	queuedMessages chan *PaymentMessage
+	queuedMessages chan *CourReserveMessage
 }
 
-func NewPaymentsProcessor(config *config.Config) {
-	paymentsProcessorOnce.Do(func() {
+func NewCourReserveProcessor(config *config.Config) {
+	courReserveProcessorOnce.Do(func() {
 		cConfig := sarama.NewConfig()
-		version, err := sarama.ParseKafkaVersion(config.PaymentsConsumerConfig.Version)
+		version, err := sarama.ParseKafkaVersion(config.CourReserveConsumerConfig.Version)
 		if err != nil {
 			zap.L().Fatal("failed to parse kafka version", zap.Error(err))
 		}
 		cConfig.Version = version
 		cConfig.Net.TLS.Enable = false
 
-		c, err := sarama.NewConsumerGroup(config.PaymentsConsumerConfig.Brokers, config.PaymentsConsumerConfig.GroupID, cConfig)
+		c, err := sarama.NewConsumerGroup(config.CourReserveConsumerConfig.Brokers, config.CourReserveConsumerConfig.GroupID, cConfig)
 		if err != nil {
 			zap.L().Fatal("failed to start consumer", zap.Error(err))
 		}
 
 		pConfig := sarama.NewConfig()
-		version, err = sarama.ParseKafkaVersion(config.PaymentsProducerConfig.Version)
+		version, err = sarama.ParseKafkaVersion(config.CourReserveProducerConfig.Version)
 		if err != nil {
 			zap.L().Fatal("failed to parse kafka version", zap.Error(err))
 		}
 		pConfig.Version = version
 		pConfig.Net.TLS.Enable = false
 
-		p, err := sarama.NewAsyncProducer(config.PaymentsProducerConfig.Brokers, pConfig)
+		p, err := sarama.NewAsyncProducer(config.CourReserveProducerConfig.Brokers, pConfig)
 		if err != nil {
 			zap.L().Fatal("failed to start producer", zap.Error(err))
 		}
 
-		paymentsProcessor = &PaymentsProcessor{
+		courReserveProcessor = &CourReserveProcessor{
 			consumer:       c,
-			consumeTopic:   config.PaymentsConsumerConfig.Topic,
+			consumeTopic:   config.CourReserveConsumerConfig.Topic,
 			producer:       p,
-			produceTopic:   config.PaymentsProducerConfig.Topic,
-			queuedMessages: make(chan *PaymentMessage, 256),
+			produceTopic:   config.CourReserveProducerConfig.Topic,
+			queuedMessages: make(chan *CourReserveMessage, 256),
 		}
 	})
 }
 
-func GetPaymentsProcessor() *PaymentsProcessor {
-	return paymentsProcessor
+func GetCourReserveProcessor() *CourReserveProcessor {
+	return courReserveProcessor
 }
 
-func (p *PaymentsProcessor) AddMessage(msg *PaymentMessage) {
+func (p *CourReserveProcessor) AddMessage(msg *CourReserveMessage) {
 	p.queuedMessages <- msg
 }
 
-func (p *PaymentsProcessor) Run() {
-	zap.L().Info("payment processor started")
+func (p *CourReserveProcessor) Run() {
+	zap.L().Info("cour_reserve processor started")
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	keepRunning := true
 
-	consumer := PaymentConsumer{
+	consumer := CourReserveConsumer{
 		ready: make(chan bool),
 	}
 
@@ -130,7 +130,7 @@ func (p *PaymentsProcessor) Run() {
 			case msg := <-p.queuedMessages:
 				bytes, err := json.Marshal(msg)
 				if err != nil {
-					zap.L().Error("failed to marshal payment message", zap.Error(err))
+					zap.L().Error("failed to marshal cour_reserve message", zap.Error(err))
 					continue
 				}
 				zap.L().Sugar().Infof("producing message: %s", string(bytes))
@@ -163,46 +163,47 @@ func (p *PaymentsProcessor) Run() {
 	}
 }
 
-// PaymentConsumer represents a Sarama consumer group consumer
-type PaymentConsumer struct {
+// CourReserveConsumer represents a Sarama consumer group consumer
+type CourReserveConsumer struct {
 	ready chan bool
 }
 
 // Setup is run at the beginning of a new session, before ConsumeClaim
-func (consumer *PaymentConsumer) Setup(sarama.ConsumerGroupSession) error {
+func (consumer *CourReserveConsumer) Setup(sarama.ConsumerGroupSession) error {
 	// Mark the consumer as ready
 	close(consumer.ready)
 	return nil
 }
 
 // Cleanup is run at the end of a session, once all ConsumeClaim goroutines have exited
-func (consumer *PaymentConsumer) Cleanup(sarama.ConsumerGroupSession) error {
+func (consumer *CourReserveConsumer) Cleanup(sarama.ConsumerGroupSession) error {
 	return nil
 }
 
 const (
-	PaymentStatusPending int8 = iota
-	PaymentStatusOK
-	PaymentStatusFailed
+	CourReserveStatusPending int8 = iota
+	CourReserveStatusOK
+	CourReserveStatusFailed
 )
 
 const (
-	Deposit = iota
-	Pay
+	RevertCourReserve = iota
+	CourReserve
 )
 
-type PaymentMessage struct {
-	PaymentID      int64   `json:"payment_id"`
-	OrderID        int64   `json:"order_id"`
-	StockChangeIDs []int64 `json:"stock_change_ids"`
-	Action         int8    `json:"action"`
-	Status         int8    `json:"status"` // 0 - pending, 1 - ok, 2 - failed
+type CourReserveMessage struct {
+	PaymentID         int64   `json:"payment_id"`
+	OrderID           int64   `json:"order_id"`
+	StockChangeIDs    []int64 `json:"stock_change_ids"`
+	CourReservationID int64   `json:"cour_reservation_id"`
+	Action            int8    `json:"action"`
+	Status            int8    `json:"status"` // 0 - pending, 1 - ok, 2 - failed
 }
 
 // ConsumeClaim must start a consumer loop of ConsumerGroupClaim's Messages().
 // Once the Messages() channel is closed, the Handler must finish its processing
 // loop and exit.
-func (consumer *PaymentConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+func (consumer *CourReserveConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	// NOTE:
 	// Do not move the code below to a goroutine.
 	// The `ConsumeClaim` itself is called within a goroutine, see:
@@ -215,8 +216,8 @@ func (consumer *PaymentConsumer) ConsumeClaim(session sarama.ConsumerGroupSessio
 				return nil
 			}
 			zap.L().Sugar().Infof("message claimed: value = %s, timestamp = %v, topic = %s", string(message.Value), message.Timestamp, message.Topic)
-			if err := consumer.processPayment(message.Value); err != nil {
-				zap.L().Error("failed to process payment message", zap.Error(err))
+			if err := consumer.processCourReserve(message.Value); err != nil {
+				zap.L().Error("failed to process cour_reserve message", zap.Error(err))
 			}
 			session.MarkMessage(message, "")
 		// Should return when `session.Context()` is done.
@@ -228,90 +229,65 @@ func (consumer *PaymentConsumer) ConsumeClaim(session sarama.ConsumerGroupSessio
 	}
 }
 
-func (consumer *PaymentConsumer) processPayment(data []byte) error {
-	var msg PaymentMessage
+func (consumer *CourReserveConsumer) processCourReserve(data []byte) error {
+	var msg CourReserveMessage
 	if err := json.Unmarshal(data, &msg); err != nil {
 		return err
 	}
 
-	if msg.Status == PaymentStatusPending || msg.PaymentID == 0 {
-		zap.L().Warn("received bad payment message",
-			zap.Int64("payment_id", msg.PaymentID),
+	if msg.Status == CourReserveStatusPending || msg.CourReservationID == 0 {
+		zap.L().Warn("received bad cour_reserve message",
+			zap.Int64("cour_reserve_id", msg.CourReservationID),
 			zap.Int8("status", msg.Status))
 		return nil
 	}
 
 	defer func() {
-		zap.L().Sugar().Infof("processed payment message: %+v", msg)
+		zap.L().Sugar().Infof("processed cour_reserve message: %+v", msg)
 	}()
 
 	switch msg.Status {
-	case PaymentStatusOK:
+	case CourReserveStatusOK:
 		switch msg.Action {
-		case Pay:
+		case CourReserve:
 			// подтверждаем заказ и отправляем уведомление на почту
 			db.ApproveOrder(msg.OrderID)
-			go NotifyUser(msg.OrderID, OrderStatusApproved)
-
-			courReserveID, err := db.CreateCourReserve(msg.OrderID)
+			go NotifyUser(msg.OrderID, OrderStatusWaitingForCourier)
+		case RevertCourReserve:
+			// что-то пошло не так, освободили слот курьеру, возвращаем деньги клиенту
+			// заказ отменится по цепочке после роллбека резерва слота
+			newCourReserveID, err := db.RevertCourReserve(msg.CourReservationID)
 			if err != nil {
-				zap.L().Sugar().Errorf("create cour_reserve: %w", err)
-				newPaymentID, err := db.RevertPayment(msg.PaymentID)
-				if err != nil {
-					zap.L().Error("failed to revert payment", zap.Error(err))
-					return nil
-				}
-				GetPaymentsProcessor().AddMessage(&PaymentMessage{
-					StockChangeIDs: msg.StockChangeIDs,
-					OrderID:        msg.OrderID,
-					Action:         Deposit,
-					Status:         PaymentStatusPending,
-					PaymentID:      newPaymentID,
-				})
+				zap.L().Error("failed to revert cour_reserve", zap.Error(err))
 				return nil
 			}
 
 			GetCourReserveProcessor().AddMessage(&CourReserveMessage{
-				OrderID:           msg.OrderID,
 				StockChangeIDs:    msg.StockChangeIDs,
-				PaymentID:         msg.PaymentID,
+				OrderID:           msg.OrderID,
+				Action:            RevertCourReserve,
 				Status:            CourReserveStatusPending,
-				Action:            CourReserve,
-				CourReservationID: courReserveID,
-			})
-		case Deposit:
-			// что-то пошло не так, деньги вернули, возвращаем товары на склад
-			// заказ отменится по цепочке после роллбека склада
-			newStockChangeIDs, err := db.RevertStockChanges(msg.StockChangeIDs)
-			if err != nil {
-				zap.L().Error("failed to revert stock_changes", zap.Error(err))
-				return nil
-			}
-
-			GetStockProcessor().AddMessage(&StockChangeMessage{
-				StockChangeIDs: newStockChangeIDs,
-				OrderID:        msg.OrderID,
-				Action:         StockAdd,
-				Status:         StockChangeStatusPending,
+				CourReservationID: newCourReserveID,
 			})
 		}
-	case PaymentStatusFailed:
+	case CourReserveStatusFailed:
 		// что-то пошло не так, деньги вернули, возвращаем товары на склад
 		// заказ отменится по цепочке после роллбека склада
-		newStockChangeIDs, err := db.RevertStockChanges(msg.StockChangeIDs)
+		newCourReserveID, err := db.RevertCourReserve(msg.CourReservationID)
 		if err != nil {
-			zap.L().Error("failed to revert stock_changes", zap.Error(err))
+			zap.L().Error("failed to revert cour_reserve", zap.Error(err))
 			return nil
 		}
 
-		GetStockProcessor().AddMessage(&StockChangeMessage{
-			StockChangeIDs: newStockChangeIDs,
-			OrderID:        msg.OrderID,
-			Action:         StockAdd,
-			Status:         StockChangeStatusPending,
+		GetCourReserveProcessor().AddMessage(&CourReserveMessage{
+			StockChangeIDs:    msg.StockChangeIDs,
+			OrderID:           msg.OrderID,
+			Action:            RevertCourReserve,
+			Status:            CourReserveStatusPending,
+			CourReservationID: newCourReserveID,
 		})
 	default:
-		zap.L().Sugar().Errorf("unknown payment msg status: %d", msg.Status)
+		zap.L().Sugar().Errorf("unknown cour_reserve msg status: %d", msg.Status)
 	}
 
 	return nil

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"order/db"
 	"order/types"
+	"time"
 
 	"github.com/valyala/fasthttp"
 	"go.uber.org/zap"
@@ -21,7 +22,10 @@ func healthCheckHandler(ctx *fasthttp.RequestCtx) {
 	ctx.WriteString(`{"status":"OK"}`)
 }
 
-var ErrCreateOrder = errors.New("create order error")
+var (
+	ErrCreateOrder           = errors.New("create order error")
+	ErrCalculateDeliveryTime = errors.New("calculate delivery time error")
+)
 
 // create_order godoc
 //
@@ -48,7 +52,14 @@ func handleCreateOrder(userID int64, ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	orderID, err := db.CreateOrder(userID, &order)
+	mask, err := calculateOrderMaskFromAddress(order.Address)
+	if err != nil {
+		zap.L().Error(fmt.Errorf("calculate delivery time: %w", err).Error())
+		handleError(ctx, ErrCreateOrder, fasthttp.StatusBadRequest)
+		return
+	}
+
+	orderID, err := db.CreateOrder(userID, mask, &order)
 	if err != nil {
 		zap.L().Error(fmt.Errorf("create order: %w", err).Error())
 		handleError(ctx, ErrCreateOrder, fasthttp.StatusBadRequest)
@@ -60,6 +71,23 @@ func handleCreateOrder(userID int64, ctx *fasthttp.RequestCtx) {
 	go postCreateOrder(&order)
 
 	ctx.SetStatusCode(fasthttp.StatusCreated)
+}
+
+// TODO replace with service call
+func calculateOrderMaskFromAddress(_ string) (int64, error) {
+	now := time.Now()
+
+	// округляем текущее время вверх
+	startHour := now.Hour()
+	if now.Minute() > 30 {
+		startHour += 1
+	}
+
+	if startHour+1 > 23 {
+		return 0, errors.New("too late to deliver")
+	}
+
+	return 1 << startHour, nil
 }
 
 func postCreateOrder(order *types.Order) {
