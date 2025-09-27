@@ -42,9 +42,13 @@ func main() {
 
 	redis.Init(config.RedisConfig)
 
-	go func() {
-		service.NewCourReserveProcessor(config).Run()
-	}()
+	service.NewCourReserveProcessor(config)
+
+	go service.GetCourReserveProcessor().Run()
+
+	service.NewNotificationsProcessor(config)
+
+	go service.GetNotificationsProcessor().Run()
 
 	server := service.NewServer(config)
 

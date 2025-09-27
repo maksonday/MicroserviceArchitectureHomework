@@ -31,7 +31,7 @@ func ProcessReserveCourier(courReserveID int64, action int8) error {
         FROM courier_reservation r
         JOIN courier_schedule s
           ON s.courier_id = r.courier_id AND s.work_date = r.work_date
-        WHERE r.reservation_id = $1 and r.status = 'pending'
+        WHERE r.id = $1 and r.status = 'pending'
     `
 	err := GetConn().QueryRow(query, courReserveID).
 		Scan(&courID, &workDate, &resMask, &schedMask)
@@ -57,9 +57,9 @@ func ProcessReserveCourier(courReserveID int64, action int8) error {
 }
 
 func processReserveCourier(courID int64, mask int64, workDate string, action int8) error {
-	actionType := "| "
+	actionType := " | "
 	if action == RevertCourReserve {
-		actionType = "& ~"
+		actionType = " & ~"
 	}
 
 	if _, err := GetConn().Exec(
@@ -83,7 +83,7 @@ func processReserveCourier(courID int64, mask int64, workDate string, action int
 func ApproveReserveCourier(courReserveID int64) {
 	if _, err := GetConn().Exec(
 		`UPDATE courier_reservation 
-		SET status = 'reserved', updated_at = NOW()
+		SET status = 'ok', mtime = NOW()
 		WHERE id = $1
         `, courReserveID); err != nil {
 		zap.L().Error("failed to approve cour_reserve", zap.Error(err))

@@ -16,6 +16,11 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	courReserveProcessor     *CourReserveProcessor
+	courReserveProcessorOnce sync.Once
+)
+
 type CourReserveProcessor struct {
 	consumer     sarama.ConsumerGroup
 	consumeTopic string
@@ -24,39 +29,45 @@ type CourReserveProcessor struct {
 	produceTopic string
 }
 
-func NewCourReserveProcessor(config *config.Config) *CourReserveProcessor {
-	cConfig := sarama.NewConfig()
-	version, err := sarama.ParseKafkaVersion(config.CourReserveConsumerConfig.Version)
-	if err != nil {
-		zap.L().Fatal("failed to parse kafka version", zap.Error(err))
-	}
-	cConfig.Version = version
-	cConfig.Net.TLS.Enable = false
+func GetCourReserveProcessor() *CourReserveProcessor {
+	return courReserveProcessor
+}
 
-	c, err := sarama.NewConsumerGroup(config.CourReserveConsumerConfig.Brokers, config.CourReserveConsumerConfig.GroupID, cConfig)
-	if err != nil {
-		zap.L().Fatal("failed to start consumer", zap.Error(err))
-	}
+func NewCourReserveProcessor(config *config.Config) {
+	courReserveProcessorOnce.Do(func() {
+		cConfig := sarama.NewConfig()
+		version, err := sarama.ParseKafkaVersion(config.CourReserveConsumerConfig.Version)
+		if err != nil {
+			zap.L().Fatal("failed to parse kafka version", zap.Error(err))
+		}
+		cConfig.Version = version
+		cConfig.Net.TLS.Enable = false
 
-	pConfig := sarama.NewConfig()
-	version, err = sarama.ParseKafkaVersion(config.CourReserveProducerConfig.Version)
-	if err != nil {
-		zap.L().Fatal("failed to parse kafka version", zap.Error(err))
-	}
-	pConfig.Version = version
-	pConfig.Net.TLS.Enable = false
+		c, err := sarama.NewConsumerGroup(config.CourReserveConsumerConfig.Brokers, config.CourReserveConsumerConfig.GroupID, cConfig)
+		if err != nil {
+			zap.L().Fatal("failed to start consumer", zap.Error(err))
+		}
 
-	p, err := sarama.NewAsyncProducer(config.CourReserveProducerConfig.Brokers, pConfig)
-	if err != nil {
-		zap.L().Fatal("failed to start producer", zap.Error(err))
-	}
+		pConfig := sarama.NewConfig()
+		version, err = sarama.ParseKafkaVersion(config.CourReserveProducerConfig.Version)
+		if err != nil {
+			zap.L().Fatal("failed to parse kafka version", zap.Error(err))
+		}
+		pConfig.Version = version
+		pConfig.Net.TLS.Enable = false
 
-	return &CourReserveProcessor{
-		consumer:     c,
-		consumeTopic: config.CourReserveConsumerConfig.Topic,
-		producer:     p,
-		produceTopic: config.CourReserveProducerConfig.Topic,
-	}
+		p, err := sarama.NewAsyncProducer(config.CourReserveProducerConfig.Brokers, pConfig)
+		if err != nil {
+			zap.L().Fatal("failed to start producer", zap.Error(err))
+		}
+
+		courReserveProcessor = &CourReserveProcessor{
+			consumer:     c,
+			consumeTopic: config.CourReserveConsumerConfig.Topic,
+			producer:     p,
+			produceTopic: config.CourReserveProducerConfig.Topic,
+		}
+	})
 }
 
 func (p *CourReserveProcessor) Run() {
