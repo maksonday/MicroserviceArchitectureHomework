@@ -21,7 +21,10 @@ func healthCheckHandler(ctx *fasthttp.RequestCtx) {
 	ctx.WriteString(`{"status":"OK"}`)
 }
 
-var ErrCreateOrder = errors.New("create order error")
+var (
+	ErrCreateOrder           = errors.New("create order error")
+	ErrCalculateDeliveryTime = errors.New("calculate delivery time error")
+)
 
 // create_order godoc
 //
@@ -48,7 +51,14 @@ func handleCreateOrder(userID int64, ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	orderID, err := db.CreateOrder(userID, &order)
+	mask, err := calculateOrderMaskFromAddress(order.Address)
+	if err != nil {
+		zap.L().Error(fmt.Errorf("calculate delivery time: %w", err).Error())
+		handleError(ctx, ErrCreateOrder, fasthttp.StatusBadRequest)
+		return
+	}
+
+	orderID, err := db.CreateOrder(userID, mask, &order)
 	if err != nil {
 		zap.L().Error(fmt.Errorf("create order: %w", err).Error())
 		handleError(ctx, ErrCreateOrder, fasthttp.StatusBadRequest)
@@ -62,6 +72,11 @@ func handleCreateOrder(userID int64, ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusCreated)
 }
 
+// TODO replace with service call
+func calculateOrderMaskFromAddress(_ string) (int64, error) {
+	return 1 << 14, nil
+}
+
 func postCreateOrder(order *types.Order) {
 	var (
 		stockChangeIDs []int64
@@ -69,6 +84,7 @@ func postCreateOrder(order *types.Order) {
 	)
 
 	if stockChangeIDs, err = db.CreateStockChanges(order.ID, order.Items); err != nil {
+		zap.L().Error("create stock changes", zap.Error(err))
 		db.RejectOrder(order.ID)
 		return
 	}

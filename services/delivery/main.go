@@ -1,22 +1,22 @@
 package main
 
 import (
+	"delivery/config"
+	"delivery/db"
+	"delivery/logging"
+	"delivery/redis"
+	"delivery/service"
 	"fmt"
 	"log"
-	"order/config"
-	"order/db"
-	"order/logging"
-	"order/redis"
-	"order/service"
 	"os"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 )
 
-//	@title			Order API
+//	@title			Delivery API
 //	@version		1.0
-//	@description	This is order service API.
+//	@description	This is a delivery service API.
 //	@termsOfService	http://swagger.io/terms/
 
 //	@license.name	Apache 2.0
@@ -24,7 +24,7 @@ import (
 func main() {
 	executablePath, err := os.Executable()
 	if err != nil {
-		fmt.Printf("Error getting executable path: %v\n", err)
+		fmt.Printf("error getting executable path: %v\n", err)
 		return
 	}
 
@@ -42,22 +42,13 @@ func main() {
 
 	redis.Init(config.RedisConfig)
 
-	go func() {
-		service.NewPaymentsProcessor(config)
-		service.GetPaymentsProcessor().Run()
-	}()
+	service.NewCourReserveProcessor(config)
 
-	service.NewStockProcessor(config)
-
-	go service.GetStockProcessor().Run()
+	go service.GetCourReserveProcessor().Run()
 
 	service.NewNotificationsProcessor(config)
 
 	go service.GetNotificationsProcessor().Run()
-
-	service.NewCourReserveProcessor(config)
-
-	go service.GetCourReserveProcessor().Run()
 
 	server := service.NewServer(config)
 

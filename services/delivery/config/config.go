@@ -72,13 +72,9 @@ type Config struct {
 	ServerConfig                *ServerConfig        `toml:"server-config"`
 	DBConfig                    *DBConfig            `toml:"db-config"`
 	RedisConfig                 *RedisConfig         `toml:"redis-config"`
-	PaymentsConsumerConfig      *KafkaConsumerConfig `toml:"payments-consumer-config"`
-	PaymentsProducerConfig      *KafkaProducerConfig `toml:"payments-producer-config"`
-	StockConsumerConfig         *KafkaConsumerConfig `toml:"stock-consumer-config"`
-	StockProducerConfig         *KafkaProducerConfig `toml:"stock-producer-config"`
-	NotificationsProducerConfig *KafkaProducerConfig `toml:"notifications-producer-config"`
 	CourReserveConsumerConfig   *KafkaConsumerConfig `toml:"cour-reserve-consumer-config"`
 	CourReserveProducerConfig   *KafkaProducerConfig `toml:"cour-reserve-producer-config"`
+	NotificationsProducerConfig *KafkaProducerConfig `toml:"notifications-producer-config"`
 }
 
 func NewConfig() *Config {
@@ -96,12 +92,9 @@ func NewConfig() *Config {
 			Port: 6379,
 			DB:   0,
 		},
-		ServerConfig:              NewServerConfig(),
-		PaymentsConsumerConfig:    NewKafkaConsumerConfig(),
-		PaymentsProducerConfig:    NewKafkaProducerConfig(),
-		StockConsumerConfig:       NewKafkaConsumerConfig(),
-		StockProducerConfig:       NewKafkaProducerConfig(),
-		CourReserveConsumerConfig: NewKafkaConsumerConfig(),
-		CourReserveProducerConfig: NewKafkaProducerConfig(),
+		ServerConfig:                NewServerConfig(),
+		CourReserveConsumerConfig:   NewKafkaConsumerConfig(),
+		CourReserveProducerConfig:   NewKafkaProducerConfig(),
+		NotificationsProducerConfig: NewKafkaProducerConfig(),
 	}
 }

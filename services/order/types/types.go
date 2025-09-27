@@ -5,9 +5,10 @@ type HTTPError struct {
 }
 
 type Order struct {
-	ID     int64  `json:"id,omitempty"`
-	Items  []Item `json:"items"`
-	Status string `json:"status,omitempty"`
+	ID      int64  `json:"id,omitempty"`
+	Items   []Item `json:"items"`
+	Status  string `json:"status,omitempty"`
+	Address string `json:"address"`
 }
 
 type Item struct {
