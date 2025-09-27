@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"order/db"
 	"order/types"
-	"time"
 
 	"github.com/valyala/fasthttp"
 	"go.uber.org/zap"
@@ -75,19 +74,7 @@ func handleCreateOrder(userID int64, ctx *fasthttp.RequestCtx) {
 
 // TODO replace with service call
 func calculateOrderMaskFromAddress(_ string) (int64, error) {
-	now := time.Now()
-
-	// округляем текущее время вверх
-	startHour := now.Hour()
-	if now.Minute() > 30 {
-		startHour += 1
-	}
-
-	if startHour+1 > 23 {
-		return 0, errors.New("too late to deliver")
-	}
-
-	return 1 << startHour, nil
+	return 1 << 14, nil
 }
 
 func postCreateOrder(order *types.Order) {
@@ -97,6 +84,7 @@ func postCreateOrder(order *types.Order) {
 	)
 
 	if stockChangeIDs, err = db.CreateStockChanges(order.ID, order.Items); err != nil {
+		zap.L().Error("create stock changes", zap.Error(err))
 		db.RejectOrder(order.ID)
 		return
 	}

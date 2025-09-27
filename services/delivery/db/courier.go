@@ -12,7 +12,18 @@ import (
 	"go.uber.org/zap"
 )
 
+var ErrUserAlreadyApplied = errors.New("user is a courier already")
+
 func CreateCourier(userID int64) error {
+	var exists bool
+	if err := GetConn().QueryRow(`select exists(select 1 from couriers where user_id = $1)`, userID).Scan(&exists); err != nil {
+		return fmt.Errorf("check user is courier already: %w", err)
+	}
+
+	if exists {
+		return ErrUserAlreadyApplied
+	}
+
 	if _, err := GetConn().Exec(`insert into couriers(user_id) values($1)`, userID); err != nil {
 		return fmt.Errorf("create courier: %w", err)
 	}
@@ -43,18 +54,19 @@ var ErrAlreadyExistsSchedule = errors.New("schedule for today exists already")
 
 func CreateScheduleForToday(userID int64, mask int64) error {
 	var courID int64
-	exists := true
+	var csID sql.NullInt64
 	if err := GetConn().QueryRow(
-		`select c.id from courier_schedule cs join couriers c on cs.courier_id = c.id where c.user_id = $1 and work_date = CURRENT_DATE`).
-		Scan(&courID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			exists = false
-		} else {
-			return fmt.Errorf("checking existing schedule for today: %w", err)
-		}
+		`SELECT c.id, cs.id
+		FROM couriers c
+		LEFT JOIN courier_schedule cs
+		ON cs.courier_id = c.id
+		WHERE c.user_id = $1
+		AND (cs.work_date = CURRENT_DATE OR cs.work_date IS NULL)`, userID).
+		Scan(&courID, &csID); err != nil {
+		return fmt.Errorf("checking existing schedule for today: %w", err)
 	}
 
-	if exists {
+	if csID.Valid {
 		return ErrAlreadyExistsSchedule
 	}
 

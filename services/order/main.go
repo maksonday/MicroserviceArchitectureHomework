@@ -47,15 +47,17 @@ func main() {
 		service.GetPaymentsProcessor().Run()
 	}()
 
-	go func() {
-		service.NewStockProcessor(config)
-		service.GetStockProcessor().Run()
-	}()
+	service.NewStockProcessor(config)
 
-	go func() {
-		service.NewNotificationsProcessor(config)
-		service.GetNotificationsProcessor().Run()
-	}()
+	go service.GetStockProcessor().Run()
+
+	service.NewNotificationsProcessor(config)
+
+	go service.GetNotificationsProcessor().Run()
+
+	service.NewCourReserveProcessor(config)
+
+	go service.GetCourReserveProcessor().Run()
 
 	server := service.NewServer(config)
 

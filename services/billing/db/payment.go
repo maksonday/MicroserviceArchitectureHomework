@@ -35,7 +35,7 @@ func ProcessPayment(paymentID int64, action int8) error {
 
 	if err := GetConn().QueryRow(
 		`select a.id, a.balance, p.amount from payments p join orders o on p.order_id = o.id join accounts a on o.user_id = a.user_id 
-		where p.id = $1 and p.status = 'pending' and o.status = 'pending' and p.action = $2`, paymentID, actionName).
+		where p.id = $1 and p.status = 'pending' and p.action = $2`, paymentID, actionName).
 		Scan(&accountID, &balance, &amount); err != nil {
 		return fmt.Errorf("get account balance: %w", err)
 	}

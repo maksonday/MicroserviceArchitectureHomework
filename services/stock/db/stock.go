@@ -98,7 +98,7 @@ func ProcessStockChangesAsync(stockChangeIDs []int64, action int8) error {
 			return fmt.Errorf("get order items quantity: %w", err)
 		}
 
-		if needed > quantity {
+		if action == StockChangeRemove && needed > quantity {
 			return ErrNotEnoughItems
 		}
 
