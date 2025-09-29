@@ -1,8 +1,10 @@
 package db
 
 import (
+	"delivery/types"
 	"errors"
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -44,7 +46,7 @@ func ProcessReserveCourier(courReserveID int64, action int8) error {
 	}
 
 	if err := processReserveCourier(courID, resMask, workDate, action); err != nil {
-		actionName := "reserver"
+		actionName := "reserve"
 		if action == RevertCourReserve {
 			actionName = "revert reserve"
 		}
@@ -63,10 +65,10 @@ func processReserveCourier(courID int64, mask int64, workDate string, action int
 	}
 
 	if _, err := GetConn().Exec(
-		`UPDATE courier_schedule
-		SET hour_mask = hour_mask`+actionType+`$1
-		WHERE courier_id = $2 AND work_date = $3
-        `, mask, courID, workDate); err != nil {
+		fmt.Sprintf(`UPDATE courier_schedule
+		SET hour_mask = hour_mask`+actionType+`%d
+		WHERE courier_id = $1 AND work_date = $2
+        `, mask), courID, workDate); err != nil {
 		return fmt.Errorf("update courier schedule: %w", err)
 	}
 
@@ -102,4 +104,55 @@ func RejectReserveCourier(courReserveID int64, reason string) {
 	}
 
 	zap.L().Info("cour_reserve rejected", zap.Int64("cour_reserve_id", courReserveID), zap.String("reason", reason))
+}
+
+func GetCourReservationsByOrderID(orderID int64) ([]types.CourierReservation, error) {
+	rows, err := GetConn().Query(`select id, order_id, courier_id, action, status, work_date, hour_mask, error, ctime, mtime from courier_reservation where order_id = $1`, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("get cour reservation list: %w", err)
+	}
+	defer rows.Close()
+
+	cr := make([]types.CourierReservation, 0)
+	for rows.Next() {
+		var (
+			id, orderID, courID int64
+			action, status      string
+			workDate            time.Time
+			hourMask            int64
+			Error               string
+			ctime, mtime        time.Time
+		)
+
+		if err := rows.Scan(&id, &orderID, &courID, &action, &status, &workDate, &hourMask, &Error, &ctime, &mtime); err != nil {
+			return nil, fmt.Errorf("scan cour reservations: %w", err)
+		}
+
+		hourIsSet := 0
+		for i := 0; i < 24; i++ {
+			if (hourMask>>i)&1 != 0 {
+				hourIsSet = i
+				break
+			}
+		}
+
+		cr = append(cr, types.CourierReservation{
+			ID:        id,
+			OrderID:   orderID,
+			CourID:    courID,
+			Action:    action,
+			Status:    status,
+			Error:     Error,
+			CTime:     ctime,
+			MTime:     mtime,
+			StartTime: workDate.Add(time.Hour * time.Duration(hourIsSet)),
+			EndTime:   workDate.Add(time.Hour * time.Duration(hourIsSet+1)),
+		})
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read cour reservation: %w", err)
+	}
+
+	return cr, nil
 }

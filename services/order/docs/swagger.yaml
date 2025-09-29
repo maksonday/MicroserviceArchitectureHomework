@@ -1,4 +1,9 @@
 definitions:
+  types.CreateOrderResponse:
+    properties:
+      id:
+        type: integer
+    type: object
   types.HTTPError:
     properties:
       error:
@@ -19,12 +24,24 @@ definitions:
     type: object
   types.Order:
     properties:
+      address:
+        type: string
+      ctime:
+        type: string
+      end_time:
+        type: string
+      error:
+        type: string
       id:
         type: integer
       items:
         items:
           $ref: '#/definitions/types.Item'
         type: array
+      mtime:
+        type: string
+      start_time:
+        type: string
       status:
         type: string
     type: object
@@ -42,9 +59,13 @@ paths:
       consumes:
       - application/json
       description: create order
+      produces:
+      - application/json
       responses:
-        "201":
-          description: Created
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.CreateOrderResponse'
         "400":
           description: Bad Request
           schema:

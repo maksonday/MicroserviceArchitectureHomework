@@ -42,13 +42,14 @@ func handleGetItems(ctx *fasthttp.RequestCtx) {
 }
 
 var (
-	ErrNoItemName  = errors.New("no item name")
-	ErrNoItemDesc  = errors.New("no item description")
-	ErrNoItemPrice = errors.New("item price is not provided or less than 0.01")
-	ErrBadInput    = errors.New("bad input")
-	ErrAddItem     = errors.New("add item error")
-	ErrUpdateItem  = errors.New("update item error")
-	ErrUpdateStock = errors.New("update stock error")
+	ErrNoItemName       = errors.New("no item name")
+	ErrNoItemDesc       = errors.New("no item description")
+	ErrNoItemPrice      = errors.New("item price is not provided or less than 0.01")
+	ErrBadInput         = errors.New("bad input")
+	ErrAddItem          = errors.New("add item error")
+	ErrUpdateItem       = errors.New("update item error")
+	ErrUpdateStock      = errors.New("update stock error")
+	ErrListStockChanges = errors.New("stock changes list error")
 )
 
 func validateItem(item *types.Item) error {
@@ -182,6 +183,31 @@ func handleStockChange(ctx *fasthttp.RequestCtx) {
 	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func handleGetStockChanges(ctx *fasthttp.RequestCtx) {
+	if string(ctx.Method()) != fasthttp.MethodPost {
+		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
+		return
+	}
+
+	var req types.StockChangesListRequest
+	if err := json.Unmarshal(ctx.Request.Body(), &req); err != nil {
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrBadInput, fasthttp.StatusBadRequest)
+		return
+	}
+
+	sc, err := db.GetStockChangesByOrderID(req.OrderID)
+	if err != nil {
+		zap.L().Error(fmt.Errorf("get stock changes list: %w", err).Error())
+		handleError(ctx, ErrListStockChanges, fasthttp.StatusBadRequest)
+		return
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.SetContentType("application/json")
+	json.NewEncoder(ctx).Encode(sc)
 }
 
 func handleError(ctx *fasthttp.RequestCtx, err error, status int) {

@@ -1,10 +1,12 @@
 package db
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"order/types"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -21,7 +23,7 @@ func GetUserByOrderID(orderID int64) (int64, error) {
 }
 
 func GetOrders(userID int64) ([]types.Order, error) {
-	rows, err := GetConn().Query(`select id, items, status from orders where user_id = $1`, userID)
+	rows, err := GetConn().Query(`select id, items, status, start_time, end_time, error, ctime, mtime from orders where user_id = $1`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -29,21 +31,39 @@ func GetOrders(userID int64) ([]types.Order, error) {
 
 	orders := make([]types.Order, 0)
 	for rows.Next() {
-		var id int64
-		var items, status string
-		if err := rows.Scan(&id, &items, &status); err != nil {
+		var (
+			id            int64
+			items, status string
+			startTime     time.Time
+			endTime       sql.NullTime
+			Error         string
+			ctime, mtime  time.Time
+		)
+
+		if err := rows.Scan(&id, &items, &status, &startTime, &endTime, &Error, &ctime, &mtime); err != nil {
 			return nil, err
 		}
 
 		order := types.Order{
-			ID:     id,
-			Status: status,
+			ID:        id,
+			Status:    status,
+			StartTime: startTime.Format(time.DateTime),
+			Error:     Error,
+			CTime:     ctime,
+			MTime:     mtime,
 		}
 
 		if err := json.Unmarshal([]byte(items), &order.Items); err != nil {
 			zap.L().Error("failed to unpack items", zap.Error(err), zap.String("data", items))
 			continue
 		}
+
+		endTimeStr := "-"
+		if endTime.Valid {
+			endTimeStr = endTime.Time.Format(time.DateTime)
+		}
+
+		order.EndTime = endTimeStr
 
 		orders = append(orders, order)
 	}
@@ -111,4 +131,12 @@ func RejectOrder(orderID int64) {
 		return
 	}
 	zap.L().Sugar().Infof("order %d rejected", orderID)
+}
+
+func OrderSetStatus(orderID int64, status string) {
+	if _, err := GetConn().Exec(`update orders set status = $1 where id = $2`, status, orderID); err != nil {
+		zap.L().Sugar().Errorf("failed to set status '%s'for order %d: %w", status, orderID, err)
+		return
+	}
+	zap.L().Sugar().Infof("order %d set status to '%s'", orderID, status)
 }

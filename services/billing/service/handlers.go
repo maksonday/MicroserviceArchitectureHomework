@@ -25,6 +25,7 @@ var (
 	ErrGetBalance    = errors.New("get balance error")
 	ErrAddMoney      = errors.New("deposit money error")
 	ErrCreateAccount = errors.New("create account error")
+	ErrInternal      = errors.New("internal error, try again lates")
 )
 
 // create_account godoc
@@ -118,6 +119,31 @@ func addMoney(ctx *fasthttp.RequestCtx, userId int64) {
 	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func getPayments(ctx *fasthttp.RequestCtx) {
+	if string(ctx.Method()) != fasthttp.MethodPost {
+		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
+		return
+	}
+
+	var req types.PaymentsListRequest
+	if err := json.Unmarshal(ctx.Request.Body(), &req); err != nil {
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrBadInput, fasthttp.StatusBadRequest)
+		return
+	}
+
+	payments, err := db.GetPaymentsByOrderID(req.OrderID)
+	if err != nil {
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrInternal, fasthttp.StatusBadRequest)
+		return
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.SetContentType("application/json")
+	json.NewEncoder(ctx).Encode(payments)
 }
 
 func handleError(ctx *fasthttp.RequestCtx, err error, status int) {

@@ -32,7 +32,8 @@ var (
 //	@Description	create order
 //	@Tags			order
 //	@Accept			json
-//	@Success		201	{object}	nil
+//	@Produce        json
+//	@Success		200	{object}	types.CreateOrderResponse
 //	@Failure		400	{object}	types.HTTPError
 //	@Failure		401	{object}	types.HTTPError
 //	@Failure		404	{object}	types.HTTPError
@@ -69,7 +70,9 @@ func handleCreateOrder(userID int64, ctx *fasthttp.RequestCtx) {
 
 	go postCreateOrder(&order)
 
-	ctx.SetStatusCode(fasthttp.StatusCreated)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.SetContentType("application/json")
+	json.NewEncoder(ctx).Encode(types.CreateOrderResponse{ID: orderID})
 }
 
 // TODO replace with service call

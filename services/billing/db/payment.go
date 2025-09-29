@@ -1,8 +1,10 @@
 package db
 
 import (
+	"billing/types"
 	"errors"
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -96,4 +98,44 @@ func RejectPayment(paymentID int64, reason string) {
 	}
 
 	zap.L().Info("payment rejected", zap.Int64("payment_id", paymentID), zap.String("reason", reason))
+}
+
+func GetPaymentsByOrderID(orderID int64) ([]types.Payment, error) {
+	rows, err := GetConn().Query(`select id, action, amount, status, ctime, mtime, error from payments where order_id = $1`, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("get payments list: %w", err)
+	}
+	defer rows.Close()
+
+	payments := make([]types.Payment, 0)
+	for rows.Next() {
+		var (
+			id           int64
+			action       string
+			amount       float64
+			status       string
+			ctime, mtime time.Time
+			Error        string
+		)
+
+		if err := rows.Scan(&id, &action, &amount, &status, &ctime, &mtime, &Error); err != nil {
+			return nil, fmt.Errorf("scan payments: %w", err)
+		}
+
+		payments = append(payments, types.Payment{
+			ID:     id,
+			Action: action,
+			Amount: amount,
+			Status: status,
+			CTime:  ctime,
+			MTime:  mtime,
+			Error:  Error,
+		})
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read payments: %w", err)
+	}
+
+	return payments, nil
 }

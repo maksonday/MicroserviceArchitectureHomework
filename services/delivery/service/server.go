@@ -32,47 +32,33 @@ func NewServer(config *config.Config) *fasthttp.Server {
 			}
 
 			switch parts[1] {
-			case "apply_work", "create_schedule", "get_orders", "confirm_delivery", "confirm_delivered":
+			case "confirm_delivery", "confirm_delivered", "add_courier", "get_courier_reservations":
 				switch {
 				case len(parts) == 2:
 					var (
-						userId    int64
-						isCourier bool
-						err       error
+						isAdmin bool
+						err     error
 					)
 
-					if userId, isCourier, err = authMiddleware(config.AuthAddr, ctx); err != nil {
+					if _, isAdmin, err = authMiddleware(config.AuthAddr, ctx); err != nil {
 						handleError(ctx, err, fasthttp.StatusUnauthorized)
 						return
 					}
 
+					if !isAdmin {
+						ctx.Error("Forbidden", fasthttp.StatusForbidden)
+						return
+					}
+
 					switch parts[1] {
-					case "apply_work":
-						applyWork(ctx, userId)
-					case "create_schedule":
-						if isCourier {
-							createScheduleForToday(ctx, userId)
-						} else {
-							ctx.Error("Forbidden", fasthttp.StatusForbidden)
-						}
-					case "get_orders":
-						if isCourier {
-							getOrders(ctx, userId)
-						} else {
-							ctx.Error("Forbidden", fasthttp.StatusForbidden)
-						}
+					case "add_courier":
+						addNewCourier(ctx)
 					case "confirm_delivery":
-						if isCourier {
-							confirmOrderDelivery(ctx, userId)
-						} else {
-							ctx.Error("Forbidden", fasthttp.StatusForbidden)
-						}
+						confirmOrderDelivery(ctx)
 					case "confirm_delivered":
-						if isCourier {
-							confirmOrderDelivered(ctx, userId)
-						} else {
-							ctx.Error("Forbidden", fasthttp.StatusForbidden)
-						}
+						confirmOrderDelivered(ctx)
+					case "get_courier_reservations":
+						getCourReservations(ctx)
 					}
 				default:
 					ctx.Error("not found", fasthttp.StatusNotFound)
@@ -135,11 +121,11 @@ func authMiddleware(addr string, ctx *fasthttp.RequestCtx) (int64, bool, error) 
 			return 0, false, fmt.Errorf("user_id is not a float64")
 		}
 
-		return int64(userId.(float64)), checkIsCourier(claims), nil
+		return int64(userId.(float64)), checkIsAdmin(claims), nil
 	}
 }
 
-func checkIsCourier(claims jwt.MapClaims) bool {
+func checkIsAdmin(claims jwt.MapClaims) bool {
 	roles, ok := claims["roles"]
 	if !ok {
 		zap.L().Warn("roles not found in claims")
@@ -154,7 +140,7 @@ func checkIsCourier(claims jwt.MapClaims) bool {
 		return false
 	}
 
-	return slices.Contains(strings.Split(rolesSlice, ","), "courier")
+	return slices.Contains(strings.Split(rolesSlice, ","), "admin")
 }
 
 const refreshCookieName = "refresh_token"

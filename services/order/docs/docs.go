@@ -25,13 +25,19 @@ const docTemplate = `{
                 "consumes": [
                     "application/json"
                 ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "order"
                 ],
                 "summary": "create order",
                 "responses": {
-                    "201": {
-                        "description": "Created"
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.CreateOrderResponse"
+                        }
                     },
                     "400": {
                         "description": "Bad Request",
@@ -121,6 +127,14 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "types.CreateOrderResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
         "types.HTTPError": {
             "type": "object",
             "properties": {
@@ -151,6 +165,18 @@ const docTemplate = `{
         "types.Order": {
             "type": "object",
             "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "ctime": {
+                    "type": "string"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -159,6 +185,12 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/types.Item"
                     }
+                },
+                "mtime": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "type": "string"
                 },
                 "status": {
                     "type": "string"
