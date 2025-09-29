@@ -121,6 +121,20 @@ func addMoney(ctx *fasthttp.RequestCtx, userId int64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
+// getPayments godoc
+//
+//	@Summary		get_payments
+//	@Description	get_payments
+//	@Tags			billing
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	[]types.Payment
+//	@Failure		400	{object}	types.HTTPError
+//	@Failure		401	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/get_payments [post]
 func getPayments(ctx *fasthttp.RequestCtx) {
 	if string(ctx.Method()) != fasthttp.MethodPost {
 		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)

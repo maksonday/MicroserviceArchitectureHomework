@@ -25,6 +25,19 @@ var (
 	ErrInternal = errors.New("internal error, try again later")
 )
 
+// add_courier godoc
+//
+//	@Summary		add_courier
+//	@Description	add_courier
+//	@Tags			delivery
+//	@Accept			json
+//	@Success		200	{object}	nil
+//	@Failure		400	{object}	types.HTTPError
+//	@Failure		401	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/add_courier [post]
 func addNewCourier(ctx *fasthttp.RequestCtx) {
 	if string(ctx.Method()) != fasthttp.MethodPost {
 		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
@@ -47,6 +60,19 @@ func addNewCourier(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
+// confirm_delivered godoc
+//
+//	@Summary		confirm_delivered
+//	@Description	confirm_delivered
+//	@Tags			delivery
+//	@Accept			json
+//	@Success		200	{object}	nil
+//	@Failure		400	{object}	types.HTTPError
+//	@Failure		401	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/confirm_delivered [post]
 func confirmOrderDelivered(ctx *fasthttp.RequestCtx) {
 	if string(ctx.Method()) != fasthttp.MethodPost {
 		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
@@ -71,6 +97,20 @@ func confirmOrderDelivered(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
+// get_courier_reservations godoc
+//
+//	@Summary		get_courier_reservations
+//	@Description	get_courier_reservations
+//	@Tags			delivery
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	[]types.CourierReservation
+//	@Failure		400	{object}	types.HTTPError
+//	@Failure		401	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/add_courier [post]
 func getCourReservations(ctx *fasthttp.RequestCtx) {
 	if string(ctx.Method()) != fasthttp.MethodPost {
 		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
