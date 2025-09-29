@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/valyala/fasthttp"
 	"go.uber.org/zap"
 )
@@ -30,15 +32,16 @@ func NewServer(config *config.Config) *fasthttp.Server {
 			}
 
 			switch parts[1] {
-			case "create_account", "add_money", "get_balance":
+			case "create_account", "add_money", "get_balance", "get_payments":
 				switch {
 				case len(parts) == 2:
 					var (
-						userId int64
-						err    error
+						userId  int64
+						isAdmin bool
+						err     error
 					)
 
-					if userId, err = authMiddleware(config.AuthAddr, ctx); err != nil {
+					if userId, isAdmin, err = authMiddleware(config.AuthAddr, ctx); err != nil {
 						handleError(ctx, err, fasthttp.StatusUnauthorized)
 						return
 					}
@@ -50,6 +53,13 @@ func NewServer(config *config.Config) *fasthttp.Server {
 						addMoney(ctx, userId)
 					case "get_balance":
 						getBalance(ctx, userId)
+					case "get_payments":
+						if isAdmin {
+							getPayments(ctx)
+						} else {
+							ctx.Error("Forbidden", fasthttp.StatusForbidden)
+							return
+						}
 					}
 				default:
 					ctx.Error("not found", fasthttp.StatusNotFound)
@@ -72,48 +82,66 @@ func NewServer(config *config.Config) *fasthttp.Server {
 	return s
 }
 
-func authMiddleware(addr string, ctx *fasthttp.RequestCtx) (int64, error) {
+func authMiddleware(addr string, ctx *fasthttp.RequestCtx) (int64, bool, error) {
 	authHeader := string(ctx.Request.Header.Peek("Authorization"))
 	if !strings.HasPrefix(authHeader, "Bearer ") {
-		return 0, ErrNoAccessToken
+		return 0, false, ErrNoAccessToken
 	}
 
 	accessToken := strings.TrimPrefix(authHeader, "Bearer ")
 	claims, err := parseToken(accessToken)
 	if err != nil {
 		if !errors.Is(err, ErrTokenExpired) {
-			return 0, fmt.Errorf("failed to parse access token: %w", err)
+			return 0, false, fmt.Errorf("failed to parse access token: %w", err)
 		}
 
 		if accessToken, err = refreshToken(addr, ctx); err != nil {
-			return 0, fmt.Errorf("failed to refresh token: %w", err)
+			return 0, false, fmt.Errorf("failed to refresh token: %w", err)
 		}
 
 		if claims, err = parseToken(accessToken); err != nil {
-			return 0, ErrParseAccessToken
+			return 0, false, ErrParseAccessToken
 		}
 	}
 
 	// Проверка в Redis
 	exists, err := redis.Client.CheckTokenBlacklist(blAtKeyPrefix, claims)
 	if err != nil && !errors.Is(err, redis.ErrNil) {
-		return 0, ErrRedis
+		return 0, false, ErrRedis
 	}
 
 	// Был сделан logout, нужно логиниться заново
 	if exists {
-		return 0, ErrAccessTokenExpired
+		return 0, false, ErrAccessTokenExpired
 	}
 
 	if userId, ok := claims["user_id"]; !ok {
-		return 0, fmt.Errorf("user_id not found in claims")
+		return 0, false, fmt.Errorf("user_id not found in claims")
 	} else {
 		if _, ok := userId.(float64); !ok {
-			return 0, fmt.Errorf("user_id is not a float64")
+			return 0, false, fmt.Errorf("user_id is not a float64")
 		}
 
-		return int64(userId.(float64)), nil
+		return int64(userId.(float64)), checkIsAdmin(claims), nil
 	}
+}
+
+func checkIsAdmin(claims jwt.MapClaims) bool {
+	roles, ok := claims["roles"]
+	if !ok {
+		zap.L().Warn("roles not found in claims")
+		return false
+	}
+
+	rolesSlice, ok := roles.(string)
+	if !ok {
+		zap.L().Warn("roles is not a string")
+		// Print actual type
+		zap.L().Warn("actual type", zap.String("type", fmt.Sprintf("%T", roles)))
+		return false
+	}
+
+	return slices.Contains(strings.Split(rolesSlice, ","), "admin")
 }
 
 const refreshCookieName = "refresh_token"

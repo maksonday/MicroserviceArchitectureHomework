@@ -25,35 +25,20 @@ var (
 	ErrInternal = errors.New("internal error, try again later")
 )
 
-func applyWork(ctx *fasthttp.RequestCtx, userID int64) {
-	if string(ctx.Method()) != fasthttp.MethodGet {
-		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
-		return
-	}
-
-	if err := db.CreateCourier(userID); err != nil {
-		zap.L().Error(err.Error())
-		handleError(ctx, ErrInternal, fasthttp.StatusBadRequest)
-		return
-	}
-
-	ctx.SetStatusCode(fasthttp.StatusOK)
-}
-
-func createScheduleForToday(ctx *fasthttp.RequestCtx, userID int64) {
+func addNewCourier(ctx *fasthttp.RequestCtx) {
 	if string(ctx.Method()) != fasthttp.MethodPost {
 		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
 		return
 	}
 
-	var schedule types.Schedule
-	if err := json.Unmarshal(ctx.Request.Body(), &schedule); err != nil {
+	var cour types.Courier
+	if err := json.Unmarshal(ctx.Request.Body(), &cour); err != nil {
 		zap.L().Error(err.Error())
-		handleError(ctx, ErrInternal, fasthttp.StatusBadRequest)
+		handleError(ctx, ErrBadInput, fasthttp.StatusBadRequest)
 		return
 	}
 
-	if err := db.CreateScheduleForToday(userID, schedule.Mask); err != nil {
+	if err := db.CreateCourier(cour.Name); err != nil {
 		zap.L().Error(err.Error())
 		handleError(ctx, ErrInternal, fasthttp.StatusBadRequest)
 		return
@@ -62,13 +47,68 @@ func createScheduleForToday(ctx *fasthttp.RequestCtx, userID int64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func getOrders(ctx *fasthttp.RequestCtx, userID int64) {
-	if string(ctx.Method()) != fasthttp.MethodGet {
+func confirmOrderDelivery(ctx *fasthttp.RequestCtx) {
+	if string(ctx.Method()) != fasthttp.MethodPost {
 		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
 		return
 	}
 
-	orders, err := db.GetOrdersByUserID(userID)
+	var order types.Order
+	if err := json.Unmarshal(ctx.Request.Body(), &order); err != nil {
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrBadInput, fasthttp.StatusBadRequest)
+		return
+	}
+
+	if err := db.ConfirmOrderDelivery(order.OrderID); err != nil {
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrInternal, fasthttp.StatusBadRequest)
+		return
+	}
+
+	go NotifyUser(order.OrderID, OrderStatusDelivery)
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func confirmOrderDelivered(ctx *fasthttp.RequestCtx) {
+	if string(ctx.Method()) != fasthttp.MethodPost {
+		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
+		return
+	}
+
+	var order types.Order
+	if err := json.Unmarshal(ctx.Request.Body(), &order); err != nil {
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrBadInput, fasthttp.StatusBadRequest)
+		return
+	}
+
+	if err := db.ConfirmOrderDelivered(order.OrderID); err != nil {
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrInternal, fasthttp.StatusBadRequest)
+		return
+	}
+
+	go NotifyUser(order.OrderID, OrderStatusDelivered)
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func getCourReservations(ctx *fasthttp.RequestCtx) {
+	if string(ctx.Method()) != fasthttp.MethodPost {
+		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
+		return
+	}
+
+	var req types.CourReserveListRequest
+	if err := json.Unmarshal(ctx.Request.Body(), &req); err != nil {
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrBadInput, fasthttp.StatusBadRequest)
+		return
+	}
+
+	cr, err := db.GetCourReservationsByOrderID(req.OrderID)
 	if err != nil {
 		zap.L().Error(err.Error())
 		handleError(ctx, ErrInternal, fasthttp.StatusBadRequest)
@@ -77,55 +117,7 @@ func getOrders(ctx *fasthttp.RequestCtx, userID int64) {
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	ctx.SetContentType("application/json")
-	json.NewEncoder(ctx).Encode(orders)
-}
-
-func confirmOrderDelivery(ctx *fasthttp.RequestCtx, userID int64) {
-	if string(ctx.Method()) != fasthttp.MethodPost {
-		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
-		return
-	}
-
-	var order types.Order
-	if err := json.Unmarshal(ctx.Request.Body(), &order); err != nil {
-		zap.L().Error(err.Error())
-		handleError(ctx, ErrInternal, fasthttp.StatusBadRequest)
-		return
-	}
-
-	if err := db.ConfirmOrderDelivery(userID, order.ID); err != nil {
-		zap.L().Error(err.Error())
-		handleError(ctx, ErrInternal, fasthttp.StatusBadRequest)
-		return
-	}
-
-	go NotifyUser(order.ID, OrderStatusDelivery)
-
-	ctx.SetStatusCode(fasthttp.StatusOK)
-}
-
-func confirmOrderDelivered(ctx *fasthttp.RequestCtx, userID int64) {
-	if string(ctx.Method()) != fasthttp.MethodPost {
-		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
-		return
-	}
-
-	var order types.Order
-	if err := json.Unmarshal(ctx.Request.Body(), &order); err != nil {
-		zap.L().Error(err.Error())
-		handleError(ctx, ErrInternal, fasthttp.StatusBadRequest)
-		return
-	}
-
-	if err := db.ConfirmOrderDelivered(userID, order.ID); err != nil {
-		zap.L().Error(err.Error())
-		handleError(ctx, ErrInternal, fasthttp.StatusBadRequest)
-		return
-	}
-
-	go NotifyUser(order.ID, OrderStatusDelivered)
-
-	ctx.SetStatusCode(fasthttp.StatusOK)
+	json.NewEncoder(ctx).Encode(cr)
 }
 
 func handleError(ctx *fasthttp.RequestCtx, err error, status int) {

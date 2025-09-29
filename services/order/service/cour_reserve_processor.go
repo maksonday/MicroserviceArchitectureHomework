@@ -251,7 +251,7 @@ func (consumer *CourReserveConsumer) processCourReserve(data []byte) error {
 		switch msg.Action {
 		case CourReserve:
 			// подтверждаем заказ и отправляем уведомление на почту
-			db.ApproveOrder(msg.OrderID)
+			db.OrderSetStatus(msg.OrderID, "waiting_for_cour")
 			go NotifyUser(msg.OrderID, OrderStatusWaitingForCourier)
 		case RevertCourReserve:
 			// что-то пошло не так, освободили слот курьеру, возвращаем деньги клиенту
@@ -271,20 +271,20 @@ func (consumer *CourReserveConsumer) processCourReserve(data []byte) error {
 			})
 		}
 	case CourReserveStatusFailed:
-		// что-то пошло не так, деньги вернули, возвращаем товары на склад
+		// что-то пошло не так, деньги возвращаем, затем возвращаем товары на склад
 		// заказ отменится по цепочке после роллбека склада
-		newCourReserveID, err := db.RevertCourReserve(msg.CourReservationID)
+		newPaymentID, err := db.RevertPayment(msg.PaymentID)
 		if err != nil {
-			zap.L().Error("failed to revert cour_reserve", zap.Error(err))
+			zap.L().Error("failed to revert payment", zap.Error(err))
 			return nil
 		}
 
-		GetCourReserveProcessor().AddMessage(&CourReserveMessage{
-			StockChangeIDs:    msg.StockChangeIDs,
-			OrderID:           msg.OrderID,
-			Action:            RevertCourReserve,
-			Status:            CourReserveStatusPending,
-			CourReservationID: newCourReserveID,
+		GetPaymentsProcessor().AddMessage(&PaymentMessage{
+			StockChangeIDs: msg.StockChangeIDs,
+			OrderID:        msg.OrderID,
+			Action:         Deposit,
+			Status:         PaymentStatusPending,
+			PaymentID:      newPaymentID,
 		})
 	default:
 		zap.L().Sugar().Errorf("unknown cour_reserve msg status: %d", msg.Status)
