@@ -6,4 +6,5 @@ type HTTPError struct {
 
 type Notification struct {
 	Message string `json:"message"`
+	OrderID int64  `json:"order_id"`
 }

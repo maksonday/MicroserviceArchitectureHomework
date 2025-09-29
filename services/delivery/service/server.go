@@ -32,7 +32,7 @@ func NewServer(config *config.Config) *fasthttp.Server {
 			}
 
 			switch parts[1] {
-			case "confirm_delivery", "confirm_delivered", "add_courier", "get_courier_reservations":
+			case "confirm_delivered", "add_courier", "get_courier_reservations":
 				switch {
 				case len(parts) == 2:
 					var (
@@ -53,8 +53,6 @@ func NewServer(config *config.Config) *fasthttp.Server {
 					switch parts[1] {
 					case "add_courier":
 						addNewCourier(ctx)
-					case "confirm_delivery":
-						confirmOrderDelivery(ctx)
 					case "confirm_delivered":
 						confirmOrderDelivered(ctx)
 					case "get_courier_reservations":
