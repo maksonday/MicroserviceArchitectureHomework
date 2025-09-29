@@ -19,16 +19,72 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/add_money": {
+        "/add_courier": {
             "post": {
-                "description": "add money",
+                "description": "get_courier_reservations",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "delivery"
+                ],
+                "summary": "get_courier_reservations",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/types.CourierReservation"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/confirm_delivered": {
+            "post": {
+                "description": "confirm_delivered",
                 "consumes": [
                     "application/json"
                 ],
                 "tags": [
-                    "billing"
+                    "delivery"
                 ],
-                "summary": "add money",
+                "summary": "confirm_delivered",
                 "responses": {
                     "200": {
                         "description": "OK"
@@ -65,108 +121,41 @@ const docTemplate = `{
                     }
                 }
             }
-        },
-        "/create_account": {
-            "get": {
-                "description": "create account",
-                "tags": [
-                    "billing"
-                ],
-                "summary": "create account",
-                "responses": {
-                    "201": {
-                        "description": "Created"
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "405": {
-                        "description": "Method Not Allowed",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    }
-                }
-            }
-        },
-        "/get_balance": {
-            "get": {
-                "description": "get balance",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "billing"
-                ],
-                "summary": "get balance",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/types.BalanceResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "405": {
-                        "description": "Method Not Allowed",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/types.HTTPError"
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {
-        "types.BalanceResponse": {
+        "types.CourierReservation": {
             "type": "object",
             "properties": {
-                "balance": {
-                    "type": "number"
+                "action": {
+                    "type": "string"
+                },
+                "courier_id": {
+                    "type": "integer"
+                },
+                "ctime": {
+                    "type": "string"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "mtime": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "integer"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },
@@ -187,8 +176,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "",
 	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "Billing API",
-	Description:      "This is a billing service API.",
+	Title:            "Delivery API",
+	Description:      "This is a delivery service API.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

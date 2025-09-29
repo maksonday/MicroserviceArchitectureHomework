@@ -21,6 +21,19 @@ func healthCheckHandler(ctx *fasthttp.RequestCtx) {
 	ctx.WriteString(`{"status":"OK"}`)
 }
 
+// get_items godoc
+//
+//	@Summary		get_items
+//	@Description	get_items
+//	@Tags			stock
+//	@Produce		json
+//	@Success		200	{object}	[]types.Item
+//	@Failure		400	{object}	types.HTTPError
+//	@Failure		401	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/get_items [get]
 func handleGetItems(ctx *fasthttp.RequestCtx) {
 	if string(ctx.Method()) != fasthttp.MethodGet {
 		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
@@ -185,6 +198,20 @@ func handleStockChange(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
+// get_stock_changes godoc
+//
+//	@Summary		get_stock_changes
+//	@Description	get_stock_changes
+//	@Tags			stock
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	[]types.StockChange
+//	@Failure		400	{object}	types.HTTPError
+//	@Failure		401	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/get_stock_changes [post]
 func handleGetStockChanges(ctx *fasthttp.RequestCtx) {
 	if string(ctx.Method()) != fasthttp.MethodPost {
 		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
