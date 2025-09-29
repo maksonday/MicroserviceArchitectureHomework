@@ -47,30 +47,6 @@ func addNewCourier(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func confirmOrderDelivery(ctx *fasthttp.RequestCtx) {
-	if string(ctx.Method()) != fasthttp.MethodPost {
-		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
-		return
-	}
-
-	var order types.Order
-	if err := json.Unmarshal(ctx.Request.Body(), &order); err != nil {
-		zap.L().Error(err.Error())
-		handleError(ctx, ErrBadInput, fasthttp.StatusBadRequest)
-		return
-	}
-
-	if err := db.ConfirmOrderDelivery(order.OrderID); err != nil {
-		zap.L().Error(err.Error())
-		handleError(ctx, ErrInternal, fasthttp.StatusBadRequest)
-		return
-	}
-
-	go NotifyUser(order.OrderID, OrderStatusDelivery)
-
-	ctx.SetStatusCode(fasthttp.StatusOK)
-}
-
 func confirmOrderDelivered(ctx *fasthttp.RequestCtx) {
 	if string(ctx.Method()) != fasthttp.MethodPost {
 		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)

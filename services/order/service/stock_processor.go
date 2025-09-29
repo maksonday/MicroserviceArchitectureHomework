@@ -282,6 +282,7 @@ func (consumer *StockConsumer) processStock(data []byte) error {
 		// не удалось применить изменения на складе, отменяем заказ
 	case StockChangeStatusFailed:
 		db.RejectOrder(msg.OrderID)
+		go NotifyUser(msg.OrderID, OrderStatusCanceled)
 	default:
 		zap.L().Sugar().Errorf("unknown stock_change msg status: %d", msg.Status)
 	}

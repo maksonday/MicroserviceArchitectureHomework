@@ -22,22 +22,6 @@ func CreateCourier(name string) error {
 	return nil
 }
 
-func ConfirmOrderDelivery(orderID int64) error {
-	var rowsAffected int64
-	if err := GetConn().QueryRow(
-		`update orders set status = 'delivery' where id = $1 and status = 'waiting_for_cour'`, orderID).Scan(&rowsAffected); err != nil {
-		return err
-	}
-
-	if rowsAffected == 0 {
-		return sql.ErrNoRows
-	}
-
-	zap.L().Info("set order status 'delivery'", zap.Int64("order_id", orderID))
-
-	return nil
-}
-
 func ConfirmOrderDelivered(orderID int64) error {
 	var rowsAffected int64
 	if err := GetConn().QueryRow(

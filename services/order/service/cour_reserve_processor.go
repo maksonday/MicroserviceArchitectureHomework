@@ -251,8 +251,8 @@ func (consumer *CourReserveConsumer) processCourReserve(data []byte) error {
 		switch msg.Action {
 		case CourReserve:
 			// подтверждаем заказ и отправляем уведомление на почту
-			db.OrderSetStatus(msg.OrderID, "waiting_for_cour")
-			go NotifyUser(msg.OrderID, OrderStatusWaitingForCourier)
+			db.OrderSetStatus(msg.OrderID, "delivery")
+			go NotifyUser(msg.OrderID, OrderStatusDelivery)
 		case RevertCourReserve:
 			// что-то пошло не так, освободили слот курьеру, возвращаем деньги клиенту
 			// заказ отменится по цепочке после роллбека резерва слота

@@ -11,7 +11,6 @@ const (
 	OrderStatusPending = iota
 	OrderStatusApproved
 	OrderStatusCanceled
-	OrderStatusWaitingForCourier
 	OrderStatusDelivery
 	OrderStatusDelivered
 )
@@ -30,8 +29,6 @@ func NotifyUser(orderID int64, status int8) {
 		statusName = "approved"
 	case OrderStatusCanceled:
 		statusName = "canceled"
-	case OrderStatusWaitingForCourier:
-		statusName = "waiting for courier"
 	case OrderStatusDelivery:
 		statusName = "delivery"
 	case OrderStatusDelivered:

@@ -7,7 +7,7 @@ import (
 )
 
 func GetNotificationsByUserID(userID int64) ([]types.Notification, error) {
-	rows, err := GetConn().Query(`select message from notifications where user_id = $1`, userID)
+	rows, err := GetConn().Query(`select message, order_id from notifications where user_id = $1`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -15,13 +15,17 @@ func GetNotificationsByUserID(userID int64) ([]types.Notification, error) {
 
 	messages := make([]types.Notification, 0)
 	for rows.Next() {
-		var message string
-		if err := rows.Scan(&message); err != nil {
+		var (
+			message string
+			orderID int64
+		)
+		if err := rows.Scan(&message, &orderID); err != nil {
 			return nil, err
 		}
 
 		messages = append(messages, types.Notification{
 			Message: message,
+			OrderID: orderID,
 		})
 	}
 
