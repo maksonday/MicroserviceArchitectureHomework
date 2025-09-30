@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	_ "github.com/lib/pq" // PostgreSQL driver
 )
@@ -14,6 +15,9 @@ import (
 var (
 	onceDB sync.Once
 	conn   *sql.DB
+
+	retryCount uint64 = 3
+	retryDelay        = time.Second
 )
 
 func getConnStr(config *config.DBConfig) string {
@@ -43,6 +47,9 @@ func Init(config *config.DBConfig) error {
 		}
 
 		err = conn.Ping()
+
+		retryCount = config.Retry.Count
+		retryDelay = config.Retry.Delay
 	})
 
 	return err

@@ -79,6 +79,7 @@ type Config struct {
 	NotificationsProducerConfig *KafkaProducerConfig `toml:"notifications-producer-config"`
 	CourReserveConsumerConfig   *KafkaConsumerConfig `toml:"cour-reserve-consumer-config"`
 	CourReserveProducerConfig   *KafkaProducerConfig `toml:"cour-reserve-producer-config"`
+	CourReserveRetryCount       int                  `toml:"cour-reserve-retry-count"`
 }
 
 func NewConfig() *Config {
@@ -103,5 +104,6 @@ func NewConfig() *Config {
 		StockProducerConfig:       NewKafkaProducerConfig(),
 		CourReserveConsumerConfig: NewKafkaConsumerConfig(),
 		CourReserveProducerConfig: NewKafkaProducerConfig(),
+		CourReserveRetryCount:     3,
 	}
 }

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sethvargo/go-retry"
 	"go.uber.org/zap"
 )
 
@@ -78,52 +80,60 @@ func ProcessStockChangesAsync(stockChangeIDs []int64, action int8) error {
 	}
 
 	changesStr := changesToStr(stockChangeIDs)
-	query := `select s.quantity, sc.quantity, s.id from stock s join stock_changes sc on sc.stock_id = s.id 
+	query := `select s.quantity, sc.quantity, s.id, s.mtime from stock s join stock_changes sc on sc.stock_id = s.id 
 		where sc.id in (%s) and sc.status = 'pending'`
 
-	rows, err := GetConn().Query(fmt.Sprintf(query, strings.Join(changesStr, ",")))
-	if err != nil {
-		return fmt.Errorf("get stock_changes: %w", err)
-	}
-	defer rows.Close()
+	backoff := retry.WithMaxRetries(retryCount, retry.NewConstant(retryDelay))
+	if err := retry.Do(context.Background(), backoff, func(ctx context.Context) error {
+		rows, err := GetConn().Query(fmt.Sprintf(query, strings.Join(changesStr, ",")))
+		if err != nil {
+			return fmt.Errorf("get stock_changes: %w", err)
+		}
+		defer rows.Close()
 
-	changes := make([]types.StockChange, 0, len(stockChangeIDs))
-	for rows.Next() {
-		var (
-			quantity int64
-			needed   int64
-			stockID  int64
-		)
+		changes := make([]types.StockChange, 0, len(stockChangeIDs))
+		for rows.Next() {
+			var (
+				quantity int64
+				needed   int64
+				stockID  int64
+				mtime    time.Time
+			)
 
-		if err := rows.Scan(&quantity, &needed, &stockID); err != nil {
-			return fmt.Errorf("get order items quantity: %w", err)
+			if err := rows.Scan(&quantity, &needed, &stockID, &mtime); err != nil {
+				return fmt.Errorf("get order items quantity: %w", err)
+			}
+
+			if action == StockChangeRemove && needed > quantity {
+				return ErrNotEnoughItems
+			}
+
+			changes = append(changes, types.StockChange{
+				StockId:  stockID,
+				Quantity: needed,
+				MTime:    mtime,
+			})
 		}
 
-		if action == StockChangeRemove && needed > quantity {
-			return ErrNotEnoughItems
+		if err := rows.Err(); err != nil {
+			return fmt.Errorf("rows scan: %w", err)
 		}
 
-		changes = append(changes, types.StockChange{
-			StockId:  stockID,
-			Quantity: needed,
-		})
-	}
-
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("rows scan: %w", err)
-	}
-
-	if len(changes) == 0 {
-		return sql.ErrNoRows
-	}
-
-	// уменьшаем кол-во вещей на складе, если все ок, иначе возвращаем обратно
-	if err := processStockChanges(changes, action); err != nil {
-		actionName := "remove"
-		if action == StockChangeAdd {
-			actionName = "add"
+		if len(changes) == 0 {
+			return sql.ErrNoRows
 		}
-		err = fmt.Errorf(actionName+" stock items: %w", err)
+
+		// уменьшаем кол-во вещей на складе, если все ок, иначе возвращаем обратно
+		if err := processStockChanges(changes, action); err != nil {
+			actionName := "remove"
+			if action == StockChangeAdd {
+				actionName = "add"
+			}
+			return retry.RetryableError(fmt.Errorf(actionName+" stock items: %w", err))
+		}
+
+		return nil
+	}); err != nil {
 		return err
 	}
 
@@ -146,24 +156,71 @@ func processStockChanges(changes []types.StockChange, action int8) error {
 		return ErrUnsupportedStockChangeAction
 	}
 
-	idsStr := make([]string, 0, len(changes))
-	for _, ch := range changes {
-		idsStr = append(idsStr, strconv.FormatInt(ch.StockId, 10))
-	}
-
-	query := `update stock set quantity = (case %s end) where id in (%s)`
-	values := make([]string, 0, len(changes))
 	operation := "+"
 	if action == StockChangeRemove {
 		operation = "-"
 	}
 
-	for _, change := range changes {
-		values = append(values, fmt.Sprintf(`when id = %d then quantity %s %d`, change.StockId, operation, change.Quantity))
+	var (
+		caseParts []string
+		ids       []string
+		args      []any
+	)
+
+	argPos := 1
+	for _, ch := range changes {
+		caseParts = append(caseParts,
+			fmt.Sprintf("WHEN id = $%d AND mtime = $%d THEN quantity %s $%d",
+				argPos, argPos+1, operation, argPos+2),
+		)
+		args = append(args, ch.StockId, ch.MTime, ch.Quantity)
+		ids = append(ids, fmt.Sprintf("$%d", argPos))
+		argPos += 3
 	}
 
-	if _, err := GetConn().Exec(fmt.Sprintf(query, strings.Join(values, "\t"), strings.Join(idsStr, ","))); err != nil {
+	query := fmt.Sprintf(`
+		UPDATE stock
+		SET quantity = CASE %s END,
+		    mtime = now()
+		WHERE id IN (%s)
+		RETURNING id
+	`, strings.Join(caseParts, " "), strings.Join(ids, ","))
+
+	tx, err := GetConn().BeginTx(context.Background(), nil)
+	if err != nil {
+		return fmt.Errorf("begin tx for stock_changes: %w", err)
+	}
+	defer tx.Rollback()
+
+	rows, err := tx.Query(query, args...)
+	if err != nil {
 		return fmt.Errorf("process stock_changes: %w", err)
+	}
+	defer rows.Close()
+
+	updated := make(map[int64]struct{})
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return fmt.Errorf("scan updated id: %w", err)
+		}
+		updated[id] = struct{}{}
+	}
+
+	// Проверяем, что все товары обновились
+	if len(updated) != len(changes) {
+		missing := make([]int64, 0)
+		for _, ch := range changes {
+			if _, ok := updated[ch.StockId]; !ok {
+				missing = append(missing, ch.StockId)
+			}
+		}
+		return fmt.Errorf("optimistic lock conflict for stock ids: %v", missing)
+	}
+
+	// Если все обновились — коммитим
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
 	}
 
 	zap.L().Info("updated stock", zap.Any("stock_changes", changes))

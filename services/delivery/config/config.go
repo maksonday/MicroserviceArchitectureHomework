@@ -21,12 +21,25 @@ func NewServerConfig() *ServerConfig {
 }
 
 type DBConfig struct {
-	Host     string `toml:"host"`
-	Port     int    `toml:"port"`
-	User     string `toml:"user"`
-	Password string `toml:"password"`
-	Database string `toml:"database"`
-	SSLMode  string `toml:"sslmode"`
+	Host     string       `toml:"host"`
+	Port     int          `toml:"port"`
+	User     string       `toml:"user"`
+	Password string       `toml:"password"`
+	Database string       `toml:"database"`
+	SSLMode  string       `toml:"sslmode"`
+	Retry    *RetryConfig `toml:"retry"`
+}
+
+type RetryConfig struct {
+	Count uint64        `toml:"count"`
+	Delay time.Duration `toml:"delay"`
+}
+
+func NewRetryConfig() *RetryConfig {
+	return &RetryConfig{
+		Count: 3,
+		Delay: time.Second,
+	}
 }
 
 type RedisConfig struct {
@@ -85,7 +98,8 @@ func NewConfig() *Config {
 		LogLevel:   "info",
 		LogFile:    "stdout",
 		DBConfig: &DBConfig{
-			Port: 5432,
+			Port:  5432,
+			Retry: NewRetryConfig(),
 		},
 		RedisConfig: &RedisConfig{
 			Host: "redis",

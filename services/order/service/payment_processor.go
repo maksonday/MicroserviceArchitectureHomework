@@ -255,7 +255,7 @@ func (consumer *PaymentConsumer) processPayment(data []byte) error {
 
 			courReserveID, err := db.CreateCourReserve(msg.OrderID)
 			if err != nil {
-				zap.L().Sugar().Errorf("create cour_reserve: %w", err)
+				zap.L().Error("create cour_reserve error", zap.Error(err))
 				newPaymentID, err := db.RevertPayment(msg.PaymentID)
 				if err != nil {
 					zap.L().Error("failed to revert payment", zap.Error(err))

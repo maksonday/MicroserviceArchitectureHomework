@@ -194,6 +194,7 @@ type CourReserveMessage struct {
 	CourReservationID int64   `json:"cour_reservation_id"`
 	Action            int8    `json:"action"`
 	Status            int8    `json:"status"` // 0 - pending, 1 - ok, 2 - failed
+	RetryCount        int     `json:"retry_count"`
 }
 
 // ConsumeClaim must start a consumer loop of ConsumerGroupClaim's Messages().
