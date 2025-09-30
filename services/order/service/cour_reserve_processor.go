@@ -18,6 +18,8 @@ import (
 var (
 	courReserveProcessorOnce sync.Once
 	courReserveProcessor     *CourReserveProcessor
+
+	courReserveRetryCount int
 )
 
 type CourReserveProcessor struct {
@@ -65,6 +67,8 @@ func NewCourReserveProcessor(config *config.Config) {
 			produceTopic:   config.CourReserveProducerConfig.Topic,
 			queuedMessages: make(chan *CourReserveMessage, 256),
 		}
+
+		courReserveRetryCount = config.CourReserveRetryCount
 	})
 }
 
@@ -198,6 +202,7 @@ type CourReserveMessage struct {
 	CourReservationID int64   `json:"cour_reservation_id"`
 	Action            int8    `json:"action"`
 	Status            int8    `json:"status"` // 0 - pending, 1 - ok, 2 - failed
+	RetryCount        int     `json:"retry_count"`
 }
 
 // ConsumeClaim must start a consumer loop of ConsumerGroupClaim's Messages().
@@ -271,7 +276,28 @@ func (consumer *CourReserveConsumer) processCourReserve(data []byte) error {
 			})
 		}
 	case CourReserveStatusFailed:
-		// что-то пошло не так, деньги возвращаем, затем возвращаем товары на склад
+		// ретраим
+		if msg.RetryCount < courReserveRetryCount {
+			courReserveID, err := db.CreateCourReserve(msg.OrderID)
+			if err != nil {
+				zap.L().Error("create cour_reserve error", zap.Error(err))
+				return nil
+			}
+
+			GetCourReserveProcessor().AddMessage(&CourReserveMessage{
+				OrderID:           msg.OrderID,
+				StockChangeIDs:    msg.StockChangeIDs,
+				PaymentID:         msg.PaymentID,
+				Status:            CourReserveStatusPending,
+				Action:            CourReserve,
+				CourReservationID: courReserveID,
+				RetryCount:        msg.RetryCount + 1,
+			})
+			return nil
+		}
+
+		// что-то пошло не так, все попытки повторить резерв курьера исчерпаны
+		// возвращаем деньги, затем возвращаем товары на склад
 		// заказ отменится по цепочке после роллбека склада
 		newPaymentID, err := db.RevertPayment(msg.PaymentID)
 		if err != nil {

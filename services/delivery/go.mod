@@ -7,6 +7,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/lib/pq v1.10.9
 	github.com/redis/go-redis/v9 v9.14.0
+	github.com/sethvargo/go-retry v0.3.0
 	github.com/swaggo/swag v1.16.6
 	github.com/valyala/fasthttp v1.66.0
 	go.uber.org/zap v1.27.0

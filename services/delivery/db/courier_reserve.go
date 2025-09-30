@@ -1,11 +1,14 @@
 package db
 
 import (
+	"context"
+	"database/sql"
 	"delivery/types"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/sethvargo/go-retry"
 	"go.uber.org/zap"
 )
 
@@ -22,35 +25,55 @@ func ProcessReserveCourier(courReserveID int64, action int8) error {
 		return ErrUnsupportedCourReserveAction
 	}
 
-	var (
-		courID             int64
-		resMask, schedMask int64
-		workDate           string
-	)
+	backoff := retry.WithMaxRetries(retryCount, retry.NewConstant(retryDelay))
+	if err := retry.Do(context.Background(), backoff, func(_ context.Context) error {
+		var (
+			courID             int64
+			resMask, schedMask int64
+			workDate           string
+			mtime              time.Time
+		)
 
-	query := `
-        SELECT r.courier_id, r.work_date, r.hour_mask, s.hour_mask
-        FROM courier_reservation r
-        JOIN courier_schedule s
-          ON s.courier_id = r.courier_id AND s.work_date = r.work_date
-        WHERE r.id = $1 and r.status = 'pending'
-    `
-	err := GetConn().QueryRow(query, courReserveID).
-		Scan(&courID, &workDate, &resMask, &schedMask)
-	if err != nil {
-		return err
-	}
+		query := `
+			SELECT r.courier_id, r.work_date, r.hour_mask, s.hour_mask, s.mtime
+			FROM courier_reservation r
+			JOIN courier_schedule s
+			ON s.courier_id = r.courier_id AND s.work_date = r.work_date
+			WHERE r.id = $1 and r.status = 'pending'
+		`
 
-	if action == CourReserve && schedMask&resMask != 0 {
-		return ErrSlotReserved
-	}
-
-	if err := processReserveCourier(courID, resMask, workDate, action); err != nil {
-		actionName := "reserve"
-		if action == RevertCourReserve {
-			actionName = "revert reserve"
+		err := GetConn().QueryRow(query, courReserveID).
+			Scan(&courID, &workDate, &resMask, &schedMask, &mtime)
+		if err != nil {
+			return err
 		}
-		return fmt.Errorf("process cour_reserve type "+actionName+": %w", err)
+
+		if action == CourReserve && schedMask&resMask != 0 {
+			return ErrSlotReserved
+		}
+
+		if err := processReserveCourier(courID, resMask, workDate, action, mtime); err != nil {
+			actionName := "reserve"
+			if action == RevertCourReserve {
+				actionName = "revert reserve"
+			}
+
+			if errors.Is(err, sql.ErrNoRows) {
+				zap.L().Warn("optimistic lock conflict, retrying",
+					zap.Int64("cour_id", courID),
+					zap.String("work_date", workDate),
+					zap.Int64("hour_mask", resMask),
+				)
+
+				return retry.RetryableError(fmt.Errorf("process cour_reserve type "+actionName+": %w", err))
+			}
+
+			return fmt.Errorf("process cour_reserve type "+actionName+": %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	zap.L().Info("cour_reserve processed", zap.Int64("cour_reserve_id", courReserveID), zap.Int8("action", action))
@@ -58,18 +81,30 @@ func ProcessReserveCourier(courReserveID int64, action int8) error {
 	return nil
 }
 
-func processReserveCourier(courID int64, mask int64, workDate string, action int8) error {
+func processReserveCourier(courID int64, mask int64, workDate string, action int8, mtime time.Time) error {
 	actionType := " | "
 	if action == RevertCourReserve {
 		actionType = " & ~"
 	}
 
-	if _, err := GetConn().Exec(
+	tx, err := GetConn().BeginTx(context.Background(), nil)
+	if err != nil {
+		return fmt.Errorf("begin tx for payment: %w", err)
+	}
+	defer tx.Rollback()
+
+	var id int64
+	if err := GetConn().QueryRow(
 		fmt.Sprintf(`UPDATE courier_schedule
-		SET hour_mask = hour_mask`+actionType+`%d
-		WHERE courier_id = $1 AND work_date = $2
-        `, mask), courID, workDate); err != nil {
+		SET hour_mask = hour_mask`+actionType+`%d, mtime = now()
+		WHERE courier_id = $1 AND work_date = $2 AND mtime = $3 returning id
+        `, mask), courID, workDate, mtime).Scan(&id); err != nil {
 		return fmt.Errorf("update courier schedule: %w", err)
+	}
+
+	// если обновилось — коммитим
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
 	}
 
 	zap.L().Info("courier schedule updated",
