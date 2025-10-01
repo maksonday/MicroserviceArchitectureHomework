@@ -176,7 +176,7 @@ func GetAllPayments() ([]types.Payment, error) {
 }
 
 func GetPaymentsByOrderID(orderID int64) ([]types.Payment, error) {
-	rows, err := GetConn().Query(`select id, order_id, action, amount, status, ctime, mtime, error from payments where order_id = $1`, orderID)
+	rows, err := GetConn().Query(`select id, action, amount, status, ctime, mtime, error from payments where order_id = $1`, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("get payments list: %w", err)
 	}
@@ -185,7 +185,7 @@ func GetPaymentsByOrderID(orderID int64) ([]types.Payment, error) {
 	payments := make([]types.Payment, 0)
 	for rows.Next() {
 		var (
-			id, orderID  int64
+			id           int64
 			action       string
 			amount       float64
 			status       string
@@ -193,7 +193,7 @@ func GetPaymentsByOrderID(orderID int64) ([]types.Payment, error) {
 			Error        string
 		)
 
-		if err := rows.Scan(&id, &orderID, &action, &amount, &status, &ctime, &mtime, &Error); err != nil {
+		if err := rows.Scan(&id, &action, &amount, &status, &ctime, &mtime, &Error); err != nil {
 			return nil, fmt.Errorf("scan payments: %w", err)
 		}
 
