@@ -39,7 +39,7 @@ func NewServer(config *config.Config) *fasthttp.Server {
 			switch parts[1] {
 			case "get_items":
 				handleGetItems(ctx)
-			case "add_item", "update_item", "stock_change", "get_stock_changes":
+			case "add_item", "update_item", "stock_change", "get_stock_changes", "get_all_stock_changes":
 				var (
 					isAdmin bool
 					err     error
@@ -64,6 +64,8 @@ func NewServer(config *config.Config) *fasthttp.Server {
 					handleStockChange(ctx)
 				case "get_stock_changes":
 					handleGetStockChanges(ctx)
+				case "get_all_stock_changes":
+					handleGetAllStockChanges(ctx)
 				}
 			case "health":
 				healthCheckHandler(ctx)

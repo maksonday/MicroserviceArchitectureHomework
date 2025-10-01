@@ -237,6 +237,37 @@ func handleGetStockChanges(ctx *fasthttp.RequestCtx) {
 	json.NewEncoder(ctx).Encode(sc)
 }
 
+// get_all_stock_changes godoc
+//
+//	@Summary		get_all_stock_changes
+//	@Description	get_all_stock_changes
+//	@Tags			stock
+//	@Produce		json
+//	@Success		200	{object}	[]types.StockChange
+//	@Failure		400	{object}	types.HTTPError
+//	@Failure		401	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/get_all_stock_changes [get]
+func handleGetAllStockChanges(ctx *fasthttp.RequestCtx) {
+	if string(ctx.Method()) != fasthttp.MethodGet {
+		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
+		return
+	}
+
+	sc, err := db.GetAllStockChanges()
+	if err != nil {
+		zap.L().Error(fmt.Errorf("get all stock changes list: %w", err).Error())
+		handleError(ctx, ErrListStockChanges, fasthttp.StatusBadRequest)
+		return
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.SetContentType("application/json")
+	json.NewEncoder(ctx).Encode(sc)
+}
+
 func handleError(ctx *fasthttp.RequestCtx, err error, status int) {
 	ctx.SetStatusCode(status)
 	ctx.SetContentType("application/json")

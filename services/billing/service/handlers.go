@@ -160,6 +160,37 @@ func getPayments(ctx *fasthttp.RequestCtx) {
 	json.NewEncoder(ctx).Encode(payments)
 }
 
+// getAllPayments godoc
+//
+//	@Summary		get_all_payments
+//	@Description	get_all_payments
+//	@Tags			billing
+//	@Produce		json
+//	@Success		200	{object}	[]types.Payment
+//	@Failure		400	{object}	types.HTTPError
+//	@Failure		401	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/get_all_payments [get]
+func getAllPayments(ctx *fasthttp.RequestCtx) {
+	if string(ctx.Method()) != fasthttp.MethodGet {
+		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
+		return
+	}
+
+	payments, err := db.GetAllPayments()
+	if err != nil {
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrInternal, fasthttp.StatusBadRequest)
+		return
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.SetContentType("application/json")
+	json.NewEncoder(ctx).Encode(payments)
+}
+
 func handleError(ctx *fasthttp.RequestCtx, err error, status int) {
 	ctx.SetStatusCode(status)
 	ctx.SetContentType("application/json")
