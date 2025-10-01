@@ -134,8 +134,49 @@ func RejectPayment(paymentID int64, reason string) {
 	zap.L().Info("payment rejected", zap.Int64("payment_id", paymentID), zap.String("reason", reason))
 }
 
+func GetAllPayments() ([]types.Payment, error) {
+	rows, err := GetConn().Query(`select id, order_id, action, amount, status, ctime, mtime, error from payments`)
+	if err != nil {
+		return nil, fmt.Errorf("get all payments list: %w", err)
+	}
+	defer rows.Close()
+
+	payments := make([]types.Payment, 0)
+	for rows.Next() {
+		var (
+			id, orderID  int64
+			action       string
+			amount       float64
+			status       string
+			ctime, mtime time.Time
+			Error        string
+		)
+
+		if err := rows.Scan(&id, &orderID, &action, &amount, &status, &ctime, &mtime, &Error); err != nil {
+			return nil, fmt.Errorf("scan all payments: %w", err)
+		}
+
+		payments = append(payments, types.Payment{
+			ID:      id,
+			OrderID: orderID,
+			Action:  action,
+			Amount:  amount,
+			Status:  status,
+			CTime:   ctime,
+			MTime:   mtime,
+			Error:   Error,
+		})
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read all payments: %w", err)
+	}
+
+	return payments, nil
+}
+
 func GetPaymentsByOrderID(orderID int64) ([]types.Payment, error) {
-	rows, err := GetConn().Query(`select id, action, amount, status, ctime, mtime, error from payments where order_id = $1`, orderID)
+	rows, err := GetConn().Query(`select id, order_id, action, amount, status, ctime, mtime, error from payments where order_id = $1`, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("get payments list: %w", err)
 	}
@@ -144,7 +185,7 @@ func GetPaymentsByOrderID(orderID int64) ([]types.Payment, error) {
 	payments := make([]types.Payment, 0)
 	for rows.Next() {
 		var (
-			id           int64
+			id, orderID  int64
 			action       string
 			amount       float64
 			status       string
@@ -152,18 +193,19 @@ func GetPaymentsByOrderID(orderID int64) ([]types.Payment, error) {
 			Error        string
 		)
 
-		if err := rows.Scan(&id, &action, &amount, &status, &ctime, &mtime, &Error); err != nil {
+		if err := rows.Scan(&id, &orderID, &action, &amount, &status, &ctime, &mtime, &Error); err != nil {
 			return nil, fmt.Errorf("scan payments: %w", err)
 		}
 
 		payments = append(payments, types.Payment{
-			ID:     id,
-			Action: action,
-			Amount: amount,
-			Status: status,
-			CTime:  ctime,
-			MTime:  mtime,
-			Error:  Error,
+			ID:      id,
+			OrderID: orderID,
+			Action:  action,
+			Amount:  amount,
+			Status:  status,
+			CTime:   ctime,
+			MTime:   mtime,
+			Error:   Error,
 		})
 	}
 

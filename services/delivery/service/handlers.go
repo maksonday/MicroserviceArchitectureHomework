@@ -110,7 +110,7 @@ func confirmOrderDelivered(ctx *fasthttp.RequestCtx) {
 //	@Failure		404	{object}	types.HTTPError
 //	@Failure		405	{object}	types.HTTPError
 //	@Failure		500	{object}	types.HTTPError
-//	@Router			/add_courier [post]
+//	@Router			/get_courier_reservations [post]
 func getCourReservations(ctx *fasthttp.RequestCtx) {
 	if string(ctx.Method()) != fasthttp.MethodPost {
 		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
@@ -125,6 +125,37 @@ func getCourReservations(ctx *fasthttp.RequestCtx) {
 	}
 
 	cr, err := db.GetCourReservationsByOrderID(req.OrderID)
+	if err != nil {
+		zap.L().Error(err.Error())
+		handleError(ctx, ErrInternal, fasthttp.StatusBadRequest)
+		return
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.SetContentType("application/json")
+	json.NewEncoder(ctx).Encode(cr)
+}
+
+// get_all_courier_reservations godoc
+//
+//	@Summary		get_all_courier_reservations
+//	@Description	get_all_courier_reservations
+//	@Tags			delivery
+//	@Produce		json
+//	@Success		200	{object}	[]types.CourierReservation
+//	@Failure		400	{object}	types.HTTPError
+//	@Failure		401	{object}	types.HTTPError
+//	@Failure		404	{object}	types.HTTPError
+//	@Failure		405	{object}	types.HTTPError
+//	@Failure		500	{object}	types.HTTPError
+//	@Router			/get_all_courier_reservations [get]
+func getAllCourReservations(ctx *fasthttp.RequestCtx) {
+	if string(ctx.Method()) != fasthttp.MethodGet {
+		ctx.Error("method not allowed", fasthttp.StatusMethodNotAllowed)
+		return
+	}
+
+	cr, err := db.GetAllCourReservations()
 	if err != nil {
 		zap.L().Error(err.Error())
 		handleError(ctx, ErrInternal, fasthttp.StatusBadRequest)

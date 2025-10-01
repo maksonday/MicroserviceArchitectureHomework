@@ -19,6 +19,7 @@ type StockChange struct {
 	Action   string    `db:"action" json:"action"`
 	Quantity int64     `db:"quantity" json:"quantity"`
 	StockId  int64     `json:"stock_id,omitempty"`
+	OrderID  int64     `json:"order_id,omitempty"`
 	ID       int64     `json:"id,omitempty"`
 	CTime    time.Time `json:"ctime"`
 	MTime    time.Time `json:"mtime"`

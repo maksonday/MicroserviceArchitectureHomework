@@ -72,6 +72,59 @@ const docTemplate = `{
                 }
             }
         },
+        "/get_all_stock_changes": {
+            "get": {
+                "description": "get_all_stock_changes",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stock"
+                ],
+                "summary": "get_all_stock_changes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/types.StockChange"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/get_items": {
             "get": {
                 "description": "get_items",
@@ -325,6 +378,9 @@ const docTemplate = `{
                 },
                 "mtime": {
                     "type": "string"
+                },
+                "order_id": {
+                    "type": "integer"
                 },
                 "quantity": {
                     "type": "integer"

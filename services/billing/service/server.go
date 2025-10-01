@@ -32,7 +32,7 @@ func NewServer(config *config.Config) *fasthttp.Server {
 			}
 
 			switch parts[1] {
-			case "create_account", "add_money", "get_balance", "get_payments":
+			case "create_account", "add_money", "get_balance", "get_payments", "get_all_payments":
 				switch {
 				case len(parts) == 2:
 					var (
@@ -56,6 +56,13 @@ func NewServer(config *config.Config) *fasthttp.Server {
 					case "get_payments":
 						if isAdmin {
 							getPayments(ctx)
+						} else {
+							ctx.Error("Forbidden", fasthttp.StatusForbidden)
+							return
+						}
+					case "get_all_payments":
+						if isAdmin {
+							getAllPayments(ctx)
 						} else {
 							ctx.Error("Forbidden", fasthttp.StatusForbidden)
 							return

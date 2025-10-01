@@ -9,13 +9,14 @@ type Account struct {
 }
 
 type Payment struct {
-	ID     int64     `json:"id,omitempty"`
-	Amount float64   `json:"amount"`
-	Status string    `json:"status,omitempty"`
-	Action string    `json:"action,omitempty"`
-	CTime  time.Time `json:"ctime"`
-	MTime  time.Time `json:"mtime"`
-	Error  string    `json:"error,omitempty"`
+	ID      int64     `json:"id,omitempty"`
+	OrderID int64     `json:"order_id"`
+	Amount  float64   `json:"amount"`
+	Status  string    `json:"status,omitempty"`
+	Action  string    `json:"action,omitempty"`
+	CTime   time.Time `json:"ctime"`
+	MTime   time.Time `json:"mtime"`
+	Error   string    `json:"error,omitempty"`
 }
 
 type PaymentsListRequest struct {

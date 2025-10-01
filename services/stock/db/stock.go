@@ -251,8 +251,49 @@ func RejectStockChanges(stockChangeIDs []int64, reason string) {
 	zap.L().Info("rejected stock changes", zap.Int64s("stock_change_ids", stockChangeIDs), zap.String("reason", reason))
 }
 
+func GetAllStockChanges() ([]types.StockChange, error) {
+	rows, err := GetConn().Query(`select id, order_id, stock_id, action, status, quantity, error, mtime, ctime from stock_changes`)
+	if err != nil {
+		return nil, fmt.Errorf("get all stock changes: %w", err)
+	}
+	defer rows.Close()
+
+	sc := make([]types.StockChange, 0)
+	for rows.Next() {
+		var (
+			id, orderID, stockID int64
+			action, status       string
+			quantity             int64
+			Error                string
+			mtime, ctime         time.Time
+		)
+
+		if err := rows.Scan(&id, &orderID, &stockID, &action, &status, &quantity, &Error, &mtime, &ctime); err != nil {
+			return nil, fmt.Errorf("scan all stock changes: %w", err)
+		}
+
+		sc = append(sc, types.StockChange{
+			ID:       id,
+			OrderID:  orderID,
+			StockId:  stockID,
+			Action:   action,
+			Status:   status,
+			Quantity: quantity,
+			Error:    Error,
+			MTime:    mtime,
+			CTime:    ctime,
+		})
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read all stock changes: %w", err)
+	}
+
+	return sc, nil
+}
+
 func GetStockChangesByOrderID(orderID int64) ([]types.StockChange, error) {
-	rows, err := GetConn().Query(`select id, stock_id, action, status, quantity, error, mtime, ctime from stock_changes where order_id = $1`, orderID)
+	rows, err := GetConn().Query(`select id, order_id, stock_id, action, status, quantity, error, mtime, ctime from stock_changes where order_id = $1`, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("get stock changes: %w", err)
 	}
@@ -261,11 +302,11 @@ func GetStockChangesByOrderID(orderID int64) ([]types.StockChange, error) {
 	sc := make([]types.StockChange, 0)
 	for rows.Next() {
 		var (
-			id, stockID    int64
-			action, status string
-			quantity       int64
-			Error          string
-			mtime, ctime   time.Time
+			id, orderID, stockID int64
+			action, status       string
+			quantity             int64
+			Error                string
+			mtime, ctime         time.Time
 		)
 
 		if err := rows.Scan(&id, &stockID, &action, &status, &quantity, &Error, &mtime, &ctime); err != nil {
@@ -274,6 +315,7 @@ func GetStockChangesByOrderID(orderID int64) ([]types.StockChange, error) {
 
 		sc = append(sc, types.StockChange{
 			ID:       id,
+			OrderID:  orderID,
 			StockId:  stockID,
 			Action:   action,
 			Status:   status,

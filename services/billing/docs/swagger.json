@@ -102,6 +102,59 @@
                 }
             }
         },
+        "/get_all_payments": {
+            "get": {
+                "description": "get_all_payments",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "billing"
+                ],
+                "summary": "get_all_payments",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/types.Payment"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/get_balance": {
             "get": {
                 "description": "get balance",
@@ -246,6 +299,9 @@
                 },
                 "mtime": {
                     "type": "string"
+                },
+                "order_id": {
+                    "type": "integer"
                 },
                 "status": {
                     "type": "string"
