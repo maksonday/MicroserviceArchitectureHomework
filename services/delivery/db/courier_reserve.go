@@ -193,7 +193,7 @@ func GetAllCourReservations() ([]types.CourierReservation, error) {
 }
 
 func GetCourReservationsByOrderID(orderID int64) ([]types.CourierReservation, error) {
-	rows, err := GetConn().Query(`select id, order_id, courier_id, action, status, work_date, hour_mask, error, ctime, mtime from courier_reservation where order_id = $1`, orderID)
+	rows, err := GetConn().Query(`select id, courier_id, action, status, work_date, hour_mask, error, ctime, mtime from courier_reservation where order_id = $1`, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("get cour reservation list: %w", err)
 	}
@@ -202,15 +202,15 @@ func GetCourReservationsByOrderID(orderID int64) ([]types.CourierReservation, er
 	cr := make([]types.CourierReservation, 0)
 	for rows.Next() {
 		var (
-			id, orderID, courID int64
-			action, status      string
-			workDate            time.Time
-			hourMask            int64
-			Error               string
-			ctime, mtime        time.Time
+			id, courID     int64
+			action, status string
+			workDate       time.Time
+			hourMask       int64
+			Error          string
+			ctime, mtime   time.Time
 		)
 
-		if err := rows.Scan(&id, &orderID, &courID, &action, &status, &workDate, &hourMask, &Error, &ctime, &mtime); err != nil {
+		if err := rows.Scan(&id, &courID, &action, &status, &workDate, &hourMask, &Error, &ctime, &mtime); err != nil {
 			return nil, fmt.Errorf("scan cour reservations: %w", err)
 		}
 

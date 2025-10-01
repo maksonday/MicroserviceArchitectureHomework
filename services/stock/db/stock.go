@@ -293,7 +293,7 @@ func GetAllStockChanges() ([]types.StockChange, error) {
 }
 
 func GetStockChangesByOrderID(orderID int64) ([]types.StockChange, error) {
-	rows, err := GetConn().Query(`select id, order_id, stock_id, action, status, quantity, error, mtime, ctime from stock_changes where order_id = $1`, orderID)
+	rows, err := GetConn().Query(`select id, stock_id, action, status, quantity, error, mtime, ctime from stock_changes where order_id = $1`, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("get stock changes: %w", err)
 	}
@@ -302,11 +302,11 @@ func GetStockChangesByOrderID(orderID int64) ([]types.StockChange, error) {
 	sc := make([]types.StockChange, 0)
 	for rows.Next() {
 		var (
-			id, orderID, stockID int64
-			action, status       string
-			quantity             int64
-			Error                string
-			mtime, ctime         time.Time
+			id, stockID    int64
+			action, status string
+			quantity       int64
+			Error          string
+			mtime, ctime   time.Time
 		)
 
 		if err := rows.Scan(&id, &stockID, &action, &status, &quantity, &Error, &mtime, &ctime); err != nil {
