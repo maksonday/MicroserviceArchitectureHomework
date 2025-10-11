@@ -42,8 +42,9 @@ type Config struct {
 	LogLevel     string        `toml:"log-level"`
 	LogFile      string        `toml:"log-file"`
 	ServerConfig *ServerConfig `toml:"server-config"`
-	DBConfig     *DBConfig     `toml:"db-config"`
-	RedisConfig  *RedisConfig  `toml:"redis-config"`
+	DBMaster     *DBConfig     `toml:"db-master"`
+	DBReplica    *DBConfig     `toml:"db-replica"`
+	RedisReplica *RedisConfig  `toml:"redis-replica"`
 }
 
 func NewConfig() *Config {
@@ -53,10 +54,13 @@ func NewConfig() *Config {
 		ListenPort: "8000",
 		LogLevel:   "info",
 		LogFile:    "stdout",
-		DBConfig: &DBConfig{
+		DBMaster: &DBConfig{
 			Port: 5432,
 		},
-		RedisConfig: &RedisConfig{
+		DBReplica: &DBConfig{
+			Port: 5432,
+		},
+		RedisReplica: &RedisConfig{
 			Host: "redis",
 			Port: 6379,
 			DB:   0,

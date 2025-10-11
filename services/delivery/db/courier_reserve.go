@@ -42,9 +42,14 @@ func ProcessReserveCourier(courReserveID int64, action int8) error {
 			WHERE r.id = $1 and r.status = 'pending'
 		`
 
-		err := GetConn().QueryRow(query, courReserveID).
+		err := GetConnSlave().QueryRow(query, courReserveID).
 			Scan(&courID, &workDate, &resMask, &schedMask, &mtime)
 		if err != nil {
+			err = fmt.Errorf("select cour_reserve: %w", err)
+			if errors.Is(err, sql.ErrNoRows) {
+				return err
+			}
+
 			return err
 		}
 
@@ -142,7 +147,7 @@ func RejectReserveCourier(courReserveID int64, reason string) {
 }
 
 func GetAllCourReservations() ([]types.CourierReservation, error) {
-	rows, err := GetConn().Query(`select id, order_id, courier_id, action, status, work_date, hour_mask, error, ctime, mtime from courier_reservation`)
+	rows, err := GetConnSlave().Query(`select id, order_id, courier_id, action, status, work_date, hour_mask, error, ctime, mtime from courier_reservation`)
 	if err != nil {
 		return nil, fmt.Errorf("get all cour reservation list: %w", err)
 	}
@@ -193,7 +198,7 @@ func GetAllCourReservations() ([]types.CourierReservation, error) {
 }
 
 func GetCourReservationsByOrderID(orderID int64) ([]types.CourierReservation, error) {
-	rows, err := GetConn().Query(`select id, courier_id, action, status, work_date, hour_mask, error, ctime, mtime from courier_reservation where order_id = $1`, orderID)
+	rows, err := GetConnSlave().Query(`select id, courier_id, action, status, work_date, hour_mask, error, ctime, mtime from courier_reservation where order_id = $1`, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("get cour reservation list: %w", err)
 	}

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"os"
@@ -233,11 +232,8 @@ func (consumer *Consumer) processStockChange(data []byte) error {
 	switch msg.Action {
 	case StockAdd, StockRemove:
 		if err := db.ProcessStockChangesAsync(msg.StockChangeIDs, msg.Action); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return nil
-			}
-
 			db.RejectStockChanges(msg.StockChangeIDs, err.Error())
+
 			zap.L().Error("failed to process stock_changes message", zap.Error(err))
 			msg.Status = StockChangeStatusFailed
 			produce(&msg)

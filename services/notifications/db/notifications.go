@@ -7,7 +7,7 @@ import (
 )
 
 func GetNotificationsByUserID(userID int64) ([]types.Notification, error) {
-	rows, err := GetConn().Query(`select message, order_id from notifications where user_id = $1`, userID)
+	rows, err := GetConnSlave().Query(`select message, order_id from notifications where user_id = $1`, userID)
 	if err != nil {
 		return nil, err
 	}

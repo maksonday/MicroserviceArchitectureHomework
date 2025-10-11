@@ -195,7 +195,7 @@ func logoutHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	if err := redis.Client.PutTokenToBlacklist(blAtKeyPrefix, claimsAt); err != nil {
+	if err := redis.PutTokenToBlacklist(blAtKeyPrefix, claimsAt); err != nil {
 		zap.L().Error(fmt.Errorf("failed to blacklist access-token: %w", err).Error())
 		handleError(ctx, ErrBadAccessToken, fasthttp.StatusUnauthorized)
 		return
@@ -215,7 +215,7 @@ func logoutHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	if err := redis.Client.PutTokenToBlacklist(blRtKeyPrefix, claimsRt); err != nil {
+	if err := redis.PutTokenToBlacklist(blRtKeyPrefix, claimsRt); err != nil {
 		zap.L().Error(fmt.Errorf("failed to blacklist access-token: %w", err).Error())
 		handleError(ctx, ErrBadAccessToken, fasthttp.StatusUnauthorized)
 		return
@@ -260,7 +260,7 @@ func refreshHandler(ctx *fasthttp.RequestCtx) {
 	}
 
 	// проверяем, нет ли refresh-token в блэклисте(из-за logout, например)
-	blacklisted, err := redis.Client.CheckTokenBlacklist(blRtKeyPrefix, claims)
+	blacklisted, err := redis.CheckTokenBlacklist(blRtKeyPrefix, claims)
 	if err != nil && !errors.Is(err, redis.ErrNil) {
 		zap.L().Error(fmt.Errorf("failed to check refresh token blacklist: %w", err).Error())
 		handleError(ctx, ErrBadRefreshToken, fasthttp.StatusUnauthorized)

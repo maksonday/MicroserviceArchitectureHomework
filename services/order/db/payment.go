@@ -28,7 +28,7 @@ func CreatePayment(orderID int64, stockChangeIDs []int64) (int64, error) {
 
 func calculateOrderTotalPrice(stockChangeIDs []int64) (float64, error) {
 	changes := changesToStr(stockChangeIDs)
-	rows, err := GetConn().Query(
+	rows, err := GetConnSlave().Query(
 		fmt.Sprintf(`select sc.quantity, i.price from stock_changes sc 
 		join stock s on s.id = sc.stock_id 
 		join items i on i.id = s.item_id 
@@ -72,7 +72,7 @@ func buildRevertPayment(paymentID int64) (int64, float64, error) {
 		orderID int64
 		amount  float64
 	)
-	if err := GetConn().QueryRow(`select order_id, amount from payments where id = $1 and action = 'pay'`, paymentID).
+	if err := GetConnSlave().QueryRow(`select order_id, amount from payments where id = $1 and action = 'pay'`, paymentID).
 		Scan(&orderID, &amount); err != nil {
 		return 0, 0, err
 	}

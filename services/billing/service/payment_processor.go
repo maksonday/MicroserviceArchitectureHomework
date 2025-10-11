@@ -4,7 +4,6 @@ import (
 	"billing/config"
 	"billing/db"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"os"
@@ -235,10 +234,6 @@ func (consumer *Consumer) processPayment(data []byte) error {
 	switch msg.Action {
 	case Deposit, Pay:
 		if err := db.ProcessPayment(msg.PaymentID, msg.Action); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return nil
-			}
-
 			db.RejectPayment(msg.PaymentID, err.Error())
 
 			zap.L().Error(

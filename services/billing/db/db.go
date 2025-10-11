@@ -14,7 +14,8 @@ import (
 
 var (
 	onceDB sync.Once
-	conn   *sql.DB
+	master *sql.DB
+	slave  *sql.DB
 
 	retryCount uint64 = 3
 	retryDelay        = time.Second
@@ -38,23 +39,36 @@ func getPassword() string {
 	return string(data)
 }
 
-func Init(config *config.DBConfig) error {
+func Init(config *config.Config) error {
 	var err error
 	onceDB.Do(func() {
-		conn, err = sql.Open("postgres", getConnStr(config))
+		retryCount = config.DBRetry.Count
+		retryDelay = config.DBRetry.Delay
+
+		master, err = sql.Open("postgres", getConnStr(config.DBMaster))
 		if err != nil {
 			return
 		}
 
-		err = conn.Ping()
+		if err = master.Ping(); err != nil {
+			return
+		}
 
-		retryCount = config.Retry.Count
-		retryDelay = config.Retry.Delay
+		slave, err = sql.Open("postgres", getConnStr(config.DBReplica))
+		if err != nil {
+			return
+		}
+
+		err = slave.Ping()
 	})
 
 	return err
 }
 
 func GetConn() *sql.DB {
-	return conn
+	return master
+}
+
+func GetConnSlave() *sql.DB {
+	return slave
 }

@@ -31,7 +31,7 @@ var (
 )
 
 func GetUserCredentials(username string) (*types.User, error) {
-	rows, err := GetConn().Query(`select id, email, password, roles from users where username = $1 LIMIT 1`, username)
+	rows, err := GetConnSlave().Query(`select id, email, password, roles from users where username = $1 LIMIT 1`, username)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
@@ -94,7 +94,7 @@ func hashPassword(password string) (string, error) {
 
 func checkUserExists(username, email string) error {
 	var user types.User
-	err := GetConn().QueryRow(`select username, email from users where username = $1 or email = $2`, username, email).Scan(&user.Username, &user.Email)
+	err := GetConnSlave().QueryRow(`select username, email from users where username = $1 or email = $2`, username, email).Scan(&user.Username, &user.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil

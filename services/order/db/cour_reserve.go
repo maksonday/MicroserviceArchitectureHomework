@@ -4,12 +4,12 @@ import "fmt"
 
 func CreateCourReserve(orderID int64) (int64, error) {
 	var mask int64
-	if err := GetConn().QueryRow(`select hour_mask from orders where id = $1`, orderID).Scan(&mask); err != nil {
+	if err := GetConnSlave().QueryRow(`select hour_mask from orders where id = $1`, orderID).Scan(&mask); err != nil {
 		return 0, fmt.Errorf("get order hour_mask: %w", err)
 	}
 
 	var courID int64
-	if err := GetConn().QueryRow(`select courier_id from courier_schedule where hour_mask & $1 = 0 limit 1`, mask).Scan(&courID); err != nil {
+	if err := GetConnSlave().QueryRow(`select courier_id from courier_schedule where hour_mask & $1 = 0 limit 1`, mask).Scan(&courID); err != nil {
 		return 0, fmt.Errorf("get free courier: %w", err)
 	}
 
@@ -29,7 +29,7 @@ func buildRevertCourReserve(courReserveID int64) (int64, int64, int64, error) {
 		mask            int64
 	)
 
-	if err := GetConn().QueryRow(`select order_id, courier_id, hour_mask from courier_reservation where id = $1 and action = 'reserve'`, courReserveID).
+	if err := GetConnSlave().QueryRow(`select order_id, courier_id, hour_mask from courier_reservation where id = $1 and action = 'reserve'`, courReserveID).
 		Scan(&orderID, &courID, &mask); err != nil {
 		return 0, 0, 0, err
 	}

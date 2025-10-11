@@ -13,7 +13,8 @@ import (
 
 var (
 	onceDB sync.Once
-	conn   *sql.DB
+	master *sql.DB
+	slave  *sql.DB
 )
 
 func getConnStr(config *config.DBConfig) string {
@@ -34,20 +35,33 @@ func getPassword() string {
 	return string(data)
 }
 
-func Init(config *config.DBConfig) error {
+func Init(config *config.Config) error {
 	var err error
 	onceDB.Do(func() {
-		conn, err = sql.Open("postgres", getConnStr(config))
+		master, err = sql.Open("postgres", getConnStr(config.DBMaster))
 		if err != nil {
 			return
 		}
 
-		err = conn.Ping()
+		if err = master.Ping(); err != nil {
+			return
+		}
+
+		slave, err = sql.Open("postgres", getConnStr(config.DBReplica))
+		if err != nil {
+			return
+		}
+
+		err = slave.Ping()
 	})
 
 	return err
 }
 
 func GetConn() *sql.DB {
-	return conn
+	return master
+}
+
+func GetConnSlave() *sql.DB {
+	return slave
 }

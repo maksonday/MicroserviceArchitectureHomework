@@ -23,19 +23,27 @@ type RedisClient struct {
 }
 
 var (
-	Client    *RedisClient
+	Master    *RedisClient
+	Slave     *RedisClient
 	redisOnce sync.Once
 
 	ErrBadClaim = errors.New("bad claim error")
 )
 
-func Init(config *config.RedisConfig) {
+func Init(config *config.Config) {
 	redisOnce.Do(func() {
-		Client = &RedisClient{
+		Master = &RedisClient{
 			redis: redis.NewClient(&redis.Options{
-				Addr:     config.Host + ":" + strconv.Itoa(config.Port),
+				Addr:     config.RedisMaster.Host + ":" + strconv.Itoa(config.RedisMaster.Port),
 				Password: getRedisPassword(),
-				DB:       config.DB,
+				DB:       config.RedisMaster.DB,
+			}),
+		}
+		Slave = &RedisClient{
+			redis: redis.NewClient(&redis.Options{
+				Addr:     config.RedisReplica.Host + ":" + strconv.Itoa(config.RedisReplica.Port),
+				Password: getRedisPassword(),
+				DB:       config.RedisReplica.DB,
 			}),
 		}
 	})
@@ -50,7 +58,7 @@ func getRedisPassword() string {
 	return string(data)
 }
 
-func (client *RedisClient) PutTokenToBlacklist(prefix string, claims jwt.MapClaims) error {
+func PutTokenToBlacklist(prefix string, claims jwt.MapClaims) error {
 	jti, ok := claims["jti"].(string)
 	if !ok {
 		return ErrBadClaim
@@ -74,10 +82,10 @@ func (client *RedisClient) PutTokenToBlacklist(prefix string, claims jwt.MapClai
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	return Client.redis.Set(ctx, prefix+jti+":"+username, true, ttl).Err()
+	return Master.redis.Set(ctx, prefix+jti+":"+username, true, ttl).Err()
 }
 
-func (client *RedisClient) CheckTokenBlacklist(prefix string, claims jwt.MapClaims) (bool, error) {
+func CheckTokenBlacklist(prefix string, claims jwt.MapClaims) (bool, error) {
 	jti, ok := claims["jti"].(string)
 	if !ok {
 		return false, ErrBadClaim
@@ -88,8 +96,8 @@ func (client *RedisClient) CheckTokenBlacklist(prefix string, claims jwt.MapClai
 		return false, ErrBadClaim
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	return Client.redis.Get(ctx, prefix+jti+":"+username).Bool()
+	return Slave.redis.Get(ctx, prefix+jti+":"+username).Bool()
 }

@@ -42,11 +42,17 @@ func ProcessPayment(paymentID int64, action int8) error {
 			actionName = "pay"
 		}
 
-		if err := GetConn().QueryRow(
+		err := GetConnSlave().QueryRow(
 			`select a.id, a.balance, p.amount, a.mtime from payments p join orders o on p.order_id = o.id join accounts a on o.user_id = a.user_id 
 		where p.id = $1 and p.status = 'pending' and p.action = $2`, paymentID, actionName).
-			Scan(&accountID, &balance, &amount, &mtime); err != nil {
-			return fmt.Errorf("get account balance: %w", err)
+			Scan(&accountID, &balance, &amount, &mtime)
+		if err != nil {
+			err = fmt.Errorf("get account balance: %w", err)
+			if errors.Is(err, sql.ErrNoRows) {
+				return retry.RetryableError(err)
+			}
+
+			return err
 		}
 
 		if action == Pay && int64(math.Floor(balance*100)) < int64(math.Ceil(amount*100)) {
@@ -135,7 +141,7 @@ func RejectPayment(paymentID int64, reason string) {
 }
 
 func GetAllPayments() ([]types.Payment, error) {
-	rows, err := GetConn().Query(`select id, order_id, action, amount, status, ctime, mtime, error from payments`)
+	rows, err := GetConnSlave().Query(`select id, order_id, action, amount, status, ctime, mtime, error from payments`)
 	if err != nil {
 		return nil, fmt.Errorf("get all payments list: %w", err)
 	}
@@ -176,7 +182,7 @@ func GetAllPayments() ([]types.Payment, error) {
 }
 
 func GetPaymentsByOrderID(orderID int64) ([]types.Payment, error) {
-	rows, err := GetConn().Query(`select id, action, amount, status, ctime, mtime, error from payments where order_id = $1`, orderID)
+	rows, err := GetConnSlave().Query(`select id, action, amount, status, ctime, mtime, error from payments where order_id = $1`, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("get payments list: %w", err)
 	}

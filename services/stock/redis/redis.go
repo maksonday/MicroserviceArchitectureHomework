@@ -23,19 +23,19 @@ type RedisClient struct {
 }
 
 var (
-	Client    *RedisClient
+	slave     *RedisClient
 	redisOnce sync.Once
 
 	ErrBadClaim = errors.New("bad claim error")
 )
 
-func Init(config *config.RedisConfig) {
+func Init(config *config.Config) {
 	redisOnce.Do(func() {
-		Client = &RedisClient{
+		slave = &RedisClient{
 			redis: redis.NewClient(&redis.Options{
-				Addr:     config.Host + ":" + strconv.Itoa(config.Port),
+				Addr:     config.RedisReplica.Host + ":" + strconv.Itoa(config.RedisReplica.Port),
 				Password: getRedisPassword(),
-				DB:       config.DB,
+				DB:       config.RedisReplica.DB,
 			}),
 		}
 	})
@@ -50,46 +50,19 @@ func getRedisPassword() string {
 	return string(data)
 }
 
-func (client *RedisClient) PutTokenToBlacklist(prefix string, claims jwt.MapClaims) error {
+func CheckTokenBlacklist(prefix string, claims jwt.MapClaims) (bool, error) {
 	jti, ok := claims["jti"].(string)
 	if !ok {
-		return ErrBadClaim
+		return false, ErrBadClaim
 	}
 
 	username, ok := claims["username"].(string)
 	if !ok {
-		return ErrBadClaim
-	}
-
-	exp, ok := claims["exp"].(float64)
-	if !ok {
-		return ErrBadClaim
-	}
-
-	ttl := time.Until(time.Unix(int64(exp), 0))
-	if ttl <= 0 {
-		ttl = time.Minute * 1
+		return false, ErrBadClaim
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	return Client.redis.Set(ctx, prefix+jti+":"+username, true, ttl).Err()
-}
-
-func (client *RedisClient) CheckTokenBlacklist(prefix string, claims jwt.MapClaims) (bool, error) {
-	jti, ok := claims["jti"].(string)
-	if !ok {
-		return false, ErrBadClaim
-	}
-
-	username, ok := claims["username"].(string)
-	if !ok {
-		return false, ErrBadClaim
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	return Client.redis.Get(ctx, prefix+jti+":"+username).Bool()
+	return slave.redis.Get(ctx, prefix+jti+":"+username).Bool()
 }

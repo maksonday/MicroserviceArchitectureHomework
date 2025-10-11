@@ -37,7 +37,7 @@ func AddMoney(userId int64, amount float64) error {
 
 func GetBalance(userId int64) (float64, error) {
 	var balance float64
-	if err := GetConn().QueryRow(`select balance from accounts where user_id = $1`, userId).Scan(&balance); err != nil {
+	if err := GetConnSlave().QueryRow(`select balance from accounts where user_id = $1`, userId).Scan(&balance); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, ErrNoUser
 		}

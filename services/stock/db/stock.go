@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"stock/types"
@@ -47,7 +46,7 @@ func ProcessStockChange(stockChange *types.StockChange) error {
 
 func getStockId(itemId int64) (int64, error) {
 	var stockId int64
-	if err := GetConn().QueryRow(`SELECT id from stock where item_id = $1`, itemId).Scan(&stockId); err != nil {
+	if err := GetConnSlave().QueryRow(`SELECT id from stock where item_id = $1`, itemId).Scan(&stockId); err != nil {
 		return 0, fmt.Errorf("failed to get stock id: %w", err)
 	}
 
@@ -85,7 +84,7 @@ func ProcessStockChangesAsync(stockChangeIDs []int64, action int8) error {
 
 	backoff := retry.WithMaxRetries(retryCount, retry.NewConstant(retryDelay))
 	if err := retry.Do(context.Background(), backoff, func(ctx context.Context) error {
-		rows, err := GetConn().Query(fmt.Sprintf(query, strings.Join(changesStr, ",")))
+		rows, err := GetConnSlave().Query(fmt.Sprintf(query, strings.Join(changesStr, ",")))
 		if err != nil {
 			return fmt.Errorf("get stock_changes: %w", err)
 		}
@@ -119,8 +118,8 @@ func ProcessStockChangesAsync(stockChangeIDs []int64, action int8) error {
 			return fmt.Errorf("rows scan: %w", err)
 		}
 
-		if len(changes) == 0 {
-			return sql.ErrNoRows
+		if len(changes) != len(stockChangeIDs) {
+			return retry.RetryableError(fmt.Errorf("some stock_changes not found or not pending"))
 		}
 
 		// уменьшаем кол-во вещей на складе, если все ок, иначе возвращаем обратно
@@ -252,7 +251,7 @@ func RejectStockChanges(stockChangeIDs []int64, reason string) {
 }
 
 func GetAllStockChanges() ([]types.StockChange, error) {
-	rows, err := GetConn().Query(`select id, order_id, stock_id, action, status, quantity, error, mtime, ctime from stock_changes`)
+	rows, err := GetConnSlave().Query(`select id, order_id, stock_id, action, status, quantity, error, mtime, ctime from stock_changes`)
 	if err != nil {
 		return nil, fmt.Errorf("get all stock changes: %w", err)
 	}
@@ -293,7 +292,7 @@ func GetAllStockChanges() ([]types.StockChange, error) {
 }
 
 func GetStockChangesByOrderID(orderID int64) ([]types.StockChange, error) {
-	rows, err := GetConn().Query(`select id, stock_id, action, status, quantity, error, mtime, ctime from stock_changes where order_id = $1`, orderID)
+	rows, err := GetConnSlave().Query(`select id, stock_id, action, status, quantity, error, mtime, ctime from stock_changes where order_id = $1`, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("get stock changes: %w", err)
 	}

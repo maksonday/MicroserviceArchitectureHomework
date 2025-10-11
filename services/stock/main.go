@@ -36,11 +36,11 @@ func main() {
 
 	logging.Init(appName, config)
 
-	if err := db.Init(config.DBConfig); err != nil {
+	if err := db.Init(config); err != nil {
 		log.Fatalf("init database: %s", err)
 	}
 
-	redis.Init(config.RedisConfig)
+	redis.Init(config)
 
 	go func() {
 		service.NewStockChangesProcessor(config).Run()

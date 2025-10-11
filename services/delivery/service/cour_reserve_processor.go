@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"delivery/config"
 	"delivery/db"
 	"encoding/json"
@@ -248,10 +247,6 @@ func (consumer *Consumer) processReserveCour(data []byte) error {
 	switch msg.Action {
 	case RevertCourReserve, CourReserve:
 		if err := db.ProcessReserveCourier(msg.CourReservationID, msg.Action); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return nil
-			}
-
 			db.RejectReserveCourier(msg.CourReservationID, err.Error())
 
 			zap.L().Error(

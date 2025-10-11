@@ -15,7 +15,7 @@ var ErrEmptyOrder = errors.New("empty order")
 
 func GetUserByOrderID(orderID int64) (int64, error) {
 	var userID int64
-	if err := GetConn().QueryRow(`select user_id from orders where id = $1`, orderID).Scan(&userID); err != nil {
+	if err := GetConnSlave().QueryRow(`select user_id from orders where id = $1`, orderID).Scan(&userID); err != nil {
 		return 0, err
 	}
 
@@ -23,7 +23,7 @@ func GetUserByOrderID(orderID int64) (int64, error) {
 }
 
 func GetOrders(userID int64) ([]types.Order, error) {
-	rows, err := GetConn().Query(`select id, items, status, start_time, end_time, error, ctime, mtime from orders where user_id = $1`, userID)
+	rows, err := GetConnSlave().Query(`select id, items, status, start_time, end_time, error, ctime, mtime from orders where user_id = $1`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func validateItem(item *types.Item) error {
 	}
 
 	var exists bool
-	if err := GetConn().QueryRow(`select exists(select 1 from items where id = $1)`, item.Id).Scan(&exists); err != nil {
+	if err := GetConnSlave().QueryRow(`select exists(select 1 from items where id = $1)`, item.Id).Scan(&exists); err != nil {
 		return fmt.Errorf("item %d not exists", item.Id)
 	}
 

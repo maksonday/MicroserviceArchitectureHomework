@@ -107,7 +107,7 @@ func authMiddleware(addr string, ctx *fasthttp.RequestCtx) (bool, error) {
 	}
 
 	// Проверка в Redis
-	exists, err := redis.Client.CheckTokenBlacklist(blAtKeyPrefix, claims)
+	exists, err := redis.CheckTokenBlacklist(blAtKeyPrefix, claims)
 	if err != nil && !errors.Is(err, redis.ErrNil) {
 		return false, ErrRedis
 	}

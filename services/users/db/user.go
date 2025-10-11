@@ -22,7 +22,7 @@ var (
 )
 
 func GetUser(id int64) (*types.User, error) {
-	rows, err := GetConn().Query(`select username, firstname, lastname, phone, email from users where id = $1 LIMIT 1`, id)
+	rows, err := GetConnSlave().Query(`select username, firstname, lastname, phone, email from users where id = $1 LIMIT 1`, id)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}

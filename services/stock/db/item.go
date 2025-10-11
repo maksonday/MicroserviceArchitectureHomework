@@ -3,7 +3,7 @@ package db
 import "stock/types"
 
 func GetItems() ([]types.Item, error) {
-	rows, err := GetConn().Query("SELECT i.id, i.name, i.description, i.price, s.quantity FROM items i join stock s on s.item_id = i.id")
+	rows, err := GetConnSlave().Query("SELECT i.id, i.name, i.description, i.price, s.quantity FROM items i join stock s on s.item_id = i.id")
 	if err != nil {
 		return nil, err
 	}

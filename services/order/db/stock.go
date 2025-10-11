@@ -57,7 +57,7 @@ func buildStockChanges(orderID int64, items []types.Item) ([]types.Item, error) 
 		itemsMap[item.Id] = item.Quantity
 	}
 
-	rows, err := GetConn().Query(fmt.Sprintf(`select id, item_id from stock where item_id in (%s)`, strings.Join(itemIDstr, ",")))
+	rows, err := GetConnSlave().Query(fmt.Sprintf(`select id, item_id from stock where item_id in (%s)`, strings.Join(itemIDstr, ",")))
 	if err != nil {
 		return nil, fmt.Errorf("get items from stock: %w", err)
 	}
@@ -96,7 +96,7 @@ func buildRevertChanges(stockChangeIDs []int64) ([]string, error) {
 	changes := changesToStr(stockChangeIDs)
 	failedChanges := fmt.Sprintf(`select order_id, stock_id, quantity from stock_changes where id in (%s) and action = 'remove'`, strings.Join(changes, ","))
 
-	rows, err := GetConn().Query(failedChanges)
+	rows, err := GetConnSlave().Query(failedChanges)
 	if err != nil {
 		return nil, err
 	}

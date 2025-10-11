@@ -21,13 +21,12 @@ func NewServerConfig() *ServerConfig {
 }
 
 type DBConfig struct {
-	Host     string       `toml:"host"`
-	Port     int          `toml:"port"`
-	User     string       `toml:"user"`
-	Password string       `toml:"password"`
-	Database string       `toml:"database"`
-	SSLMode  string       `toml:"sslmode"`
-	Retry    *RetryConfig `toml:"retry"`
+	Host     string `toml:"host"`
+	Port     int    `toml:"port"`
+	User     string `toml:"user"`
+	Password string `toml:"password"`
+	Database string `toml:"database"`
+	SSLMode  string `toml:"sslmode"`
 }
 
 type RetryConfig struct {
@@ -83,8 +82,10 @@ type Config struct {
 	LogLevel       string               `toml:"log-level"`
 	LogFile        string               `toml:"log-file"`
 	ServerConfig   *ServerConfig        `toml:"server-config"`
-	DBConfig       *DBConfig            `toml:"db-config"`
-	RedisConfig    *RedisConfig         `toml:"redis-config"`
+	DBMaster       *DBConfig            `toml:"db-master"`
+	DBReplica      *DBConfig            `toml:"db-replica"`
+	DBRetry        *RetryConfig         `toml:"db-retry"`
+	RedisReplica   *RedisConfig         `toml:"redis-replica"`
 	ConsumerConfig *KafkaConsumerConfig `toml:"consumer-config"`
 	ProducerConfig *KafkaProducerConfig `toml:"producer-config"`
 }
@@ -96,15 +97,18 @@ func NewConfig() *Config {
 		ListenPort: "8000",
 		LogLevel:   "info",
 		LogFile:    "stdout",
-		DBConfig: &DBConfig{
-			Port:  5432,
-			Retry: NewRetryConfig(),
+		DBMaster: &DBConfig{
+			Port: 5432,
 		},
-		RedisConfig: &RedisConfig{
+		DBReplica: &DBConfig{
+			Port: 5432,
+		},
+		RedisReplica: &RedisConfig{
 			Host: "redis",
 			Port: 6379,
 			DB:   0,
 		},
+		DBRetry:        NewRetryConfig(),
 		ServerConfig:   NewServerConfig(),
 		ConsumerConfig: NewKafkaConsumerConfig(),
 		ProducerConfig: NewKafkaProducerConfig(),
