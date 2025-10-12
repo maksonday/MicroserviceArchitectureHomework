@@ -47,7 +47,7 @@ func ProcessReserveCourier(courReserveID int64, action int8) error {
 		if err != nil {
 			err = fmt.Errorf("select cour_reserve: %w", err)
 			if errors.Is(err, sql.ErrNoRows) {
-				return err
+				return retry.RetryableError(err)
 			}
 
 			return err
