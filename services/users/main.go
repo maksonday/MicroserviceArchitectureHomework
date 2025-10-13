@@ -3,15 +3,18 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"users/config"
 	"users/db"
 	"users/logging"
+	"users/metrics"
 	"users/redis"
 	"users/service"
 
 	"github.com/BurntSushi/toml"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 //	@title			Users API
@@ -41,6 +44,10 @@ func main() {
 	}
 
 	redis.Init(config)
+
+	metrics.Init()
+	http.Handle("/metrics", promhttp.Handler())
+	go http.ListenAndServe(":8542", nil)
 
 	server := service.NewServer(config)
 
