@@ -4,6 +4,7 @@ import (
 	"context"
 	"delivery/config"
 	"delivery/db"
+	"delivery/metrics"
 	"encoding/json"
 	"errors"
 	"os"
@@ -216,6 +217,9 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				zap.L().Error("failed to process reserve cour message", zap.Error(err))
 			}
 			session.MarkMessage(message, "")
+
+			lag := claim.HighWaterMarkOffset() - message.Offset - 1
+			metrics.SetTopicPartitionLag(claim.Topic(), claim.Partition(), lag)
 		// Should return when `session.Context()` is done.
 		// If not, will raise `ErrRebalanceInProgress` or `read tcp <ip>:<port>: i/o timeout` when kafka rebalance. see:
 		// https://github.com/IBM/sarama/issues/1192

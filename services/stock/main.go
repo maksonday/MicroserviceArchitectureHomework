@@ -3,15 +3,18 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"stock/config"
 	"stock/db"
 	"stock/logging"
+	"stock/metrics"
 	"stock/redis"
 	"stock/service"
 
 	"github.com/BurntSushi/toml"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 //	@title			Stock API
@@ -45,6 +48,10 @@ func main() {
 	go func() {
 		service.NewStockChangesProcessor(config).Run()
 	}()
+
+	metrics.Init()
+	http.Handle("/metrics", promhttp.Handler())
+	go http.ListenAndServe(":8542", nil)
 
 	server := service.NewServer(config)
 

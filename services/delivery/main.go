@@ -4,14 +4,17 @@ import (
 	"delivery/config"
 	"delivery/db"
 	"delivery/logging"
+	"delivery/metrics"
 	"delivery/redis"
 	"delivery/service"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 //	@title			Delivery API
@@ -49,6 +52,10 @@ func main() {
 	service.NewNotificationsProcessor(config)
 
 	go service.GetNotificationsProcessor().Run()
+
+	metrics.Init()
+	http.Handle("/metrics", promhttp.Handler())
+	go http.ListenAndServe(":8542", nil)
 
 	server := service.NewServer(config)
 

@@ -3,15 +3,18 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"notifications/config"
 	"notifications/db"
 	"notifications/logging"
+	"notifications/metrics"
 	"notifications/redis"
 	"notifications/service"
 	"os"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 //	@title			Notifications API
@@ -45,6 +48,10 @@ func main() {
 	go func() {
 		service.NewNotificationsProcessor(config).Run()
 	}()
+
+	metrics.Init()
+	http.Handle("/metrics", promhttp.Handler())
+	go http.ListenAndServe(":8542", nil)
 
 	server := service.NewServer(config)
 

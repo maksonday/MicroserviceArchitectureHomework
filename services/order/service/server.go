@@ -8,6 +8,7 @@ import (
 	"order/redis"
 	"strings"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/valyala/fasthttp"
 	"go.uber.org/zap"
 )
@@ -55,6 +56,8 @@ func NewServer(config *config.Config) *fasthttp.Server {
 				}
 			case "health":
 				healthCheckHandler(ctx)
+			case "metrics":
+				promhttp.Handler()
 			default:
 				ctx.Error("not found", fasthttp.StatusNotFound)
 			}
