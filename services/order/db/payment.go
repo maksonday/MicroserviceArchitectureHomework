@@ -1,8 +1,11 @@
 package db
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"math"
+	"order/metrics"
 	"strconv"
 	"strings"
 
@@ -18,6 +21,7 @@ func CreatePayment(orderID int64, stockChangeIDs []int64) (int64, error) {
 	var paymentID int64
 	if err := GetConn().QueryRow(
 		`insert into payments(order_id, action, amount) values($1, 'pay', $2) returning id`, orderID, totalPrice).Scan(&paymentID); err != nil {
+		metrics.DBWriteErrorsCount.Inc()
 		return 0, fmt.Errorf("create payment: %w", err)
 	}
 
@@ -34,6 +38,9 @@ func calculateOrderTotalPrice(stockChangeIDs []int64) (float64, error) {
 		join items i on i.id = s.item_id 
 		where sc.id in (%s)`, strings.Join(changes, ",")))
 	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			metrics.DBReadErrorsCount.Inc()
+		}
 		return 0, fmt.Errorf("failed to get stock_changes: %w", err)
 	}
 	defer rows.Close()
@@ -74,6 +81,9 @@ func buildRevertPayment(paymentID int64) (int64, float64, error) {
 	)
 	if err := GetConnSlave().QueryRow(`select order_id, amount from payments where id = $1 and action = 'pay'`, paymentID).
 		Scan(&orderID, &amount); err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			metrics.DBReadErrorsCount.Inc()
+		}
 		return 0, 0, err
 	}
 
@@ -89,6 +99,7 @@ func RevertPayment(paymentID int64) (int64, error) {
 	var newID int64
 	if err := GetConn().QueryRow(
 		`insert into payments(order_id, amount, action) values ($1, $2, 'deposit') returning id`, orderID, amount).Scan(&newID); err != nil {
+		metrics.DBWriteErrorsCount.Inc()
 		return 0, err
 	}
 

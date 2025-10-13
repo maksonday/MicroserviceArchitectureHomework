@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"users/metrics"
 	"users/types"
 
 	"github.com/georgysavva/scany/sqlscan"
@@ -24,6 +25,7 @@ var (
 func GetUser(id int64) (*types.User, error) {
 	rows, err := GetConnSlave().Query(`select username, firstname, lastname, phone, email from users where id = $1 LIMIT 1`, id)
 	if err != nil {
+		metrics.DBReadErrorsCount.Inc()
 		return nil, fmt.Errorf("get user: %w", err)
 	}
 	defer rows.Close()
@@ -49,6 +51,7 @@ func GetUser(id int64) (*types.User, error) {
 
 func DeleteUser(id int64) error {
 	if _, err := GetConn().Exec(`delete from users where id = $1`, id); err != nil {
+		metrics.DBWriteErrorsCount.Inc()
 		return fmt.Errorf("delete user: %w", err)
 	}
 
@@ -65,6 +68,7 @@ func CreateUser(user *types.User) (int64, error) {
 
 	var id int64
 	if err := res.Scan(&id); err != nil {
+		metrics.DBWriteErrorsCount.Inc()
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, fmt.Errorf("create user: no rows returned")
 		}
@@ -81,6 +85,7 @@ func UpdateUser(user *types.User) error {
 
 	if _, err := GetConn().Exec(`update users set username = $1, firstname = $2, lastname = $3, email = $4, phone = $5 where id = $6`,
 		user.Username, user.FirstName, user.LastName, user.Email, user.Phone, user.Id); err != nil {
+		metrics.DBWriteErrorsCount.Inc()
 		return fmt.Errorf("update user: %w", err)
 	}
 

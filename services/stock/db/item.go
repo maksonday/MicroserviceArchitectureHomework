@@ -1,10 +1,14 @@
 package db
 
-import "stock/types"
+import (
+	"stock/metrics"
+	"stock/types"
+)
 
 func GetItems() ([]types.Item, error) {
 	rows, err := GetConnSlave().Query("SELECT i.id, i.name, i.description, i.price, s.quantity FROM items i join stock s on s.item_id = i.id")
 	if err != nil {
+		metrics.DBReadErrorsCount.Inc()
 		return nil, err
 	}
 	defer rows.Close()
@@ -29,6 +33,7 @@ func AddItem(item *types.Item) error {
 	res := GetConn().QueryRow(`INSERT INTO items (name, description, price, mtime) VALUES ($1, $2, $3, NOW()) RETURNING id`, item.Name, item.Description, item.Price)
 
 	if err := res.Scan(&item.Id); err != nil {
+		metrics.DBWriteErrorsCount.Inc()
 		return err
 	}
 
@@ -43,5 +48,8 @@ func AddItem(item *types.Item) error {
 
 func UpdateItem(item *types.Item) error {
 	_, err := GetConn().Exec(`UPDATE items SET name = $1, description = $2, price = $3, mtime = NOW() WHERE id = $4`, item.Name, item.Description, item.Price, item.Id)
+	if err != nil {
+		metrics.DBWriteErrorsCount.Inc()
+	}
 	return err
 }

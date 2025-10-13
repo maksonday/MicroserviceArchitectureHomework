@@ -25,11 +25,3 @@ func Init() {
 	prometheus.MustRegister(DBWriteErrorsCount)
 	prometheus.MustRegister(DBReadErrorsCount)
 }
-
-func IncDBReadErrorsCount() {
-	DBReadErrorsCount.Inc()
-}
-
-func IncDBWriteErrorsCount() {
-	DBWriteErrorsCount.Inc()
-}

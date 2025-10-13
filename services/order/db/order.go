@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"order/metrics"
 	"order/types"
 	"time"
 
@@ -16,6 +17,7 @@ var ErrEmptyOrder = errors.New("empty order")
 func GetUserByOrderID(orderID int64) (int64, error) {
 	var userID int64
 	if err := GetConnSlave().QueryRow(`select user_id from orders where id = $1`, orderID).Scan(&userID); err != nil {
+		metrics.DBReadErrorsCount.Inc()
 		return 0, err
 	}
 
@@ -25,6 +27,7 @@ func GetUserByOrderID(orderID int64) (int64, error) {
 func GetOrders(userID int64) ([]types.Order, error) {
 	rows, err := GetConnSlave().Query(`select id, items, status, start_time, end_time, error, ctime, mtime from orders where user_id = $1`, userID)
 	if err != nil {
+		metrics.DBReadErrorsCount.Inc()
 		return nil, err
 	}
 	defer rows.Close()
@@ -94,6 +97,7 @@ func CreateOrder(userID, mask int64, order *types.Order) (int64, error) {
 	if err := GetConn().QueryRow(
 		`insert into orders(user_id, items, hour_mask) values($1, $2, $3) returning id`, userID, string(packedItems), mask).
 		Scan(&orderID); err != nil {
+		metrics.DBWriteErrorsCount.Inc()
 		return 0, fmt.Errorf("failed to create order: %w", err)
 	}
 
@@ -109,7 +113,12 @@ func validateItem(item *types.Item) error {
 
 	var exists bool
 	if err := GetConnSlave().QueryRow(`select exists(select 1 from items where id = $1)`, item.Id).Scan(&exists); err != nil {
-		return fmt.Errorf("item %d not exists", item.Id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("item %d not exists", item.Id)
+		}
+
+		metrics.DBReadErrorsCount.Inc()
+		return fmt.Errorf("check item %d: %w", item.Id, err)
 	}
 
 	return nil
@@ -117,6 +126,7 @@ func validateItem(item *types.Item) error {
 
 func ApproveOrder(orderID int64) error {
 	if _, err := GetConn().Exec(`update orders set status = 'approved' where id = $1`, orderID); err != nil {
+		metrics.DBWriteErrorsCount.Inc()
 		return fmt.Errorf("approve order: %w", err)
 	}
 
@@ -127,6 +137,7 @@ func ApproveOrder(orderID int64) error {
 
 func RejectOrder(orderID int64) {
 	if _, err := GetConn().Exec(`update orders set status = 'canceled' where id = $1`, orderID); err != nil {
+		metrics.DBWriteErrorsCount.Inc()
 		zap.L().Sugar().Errorf("failed to reject order %d: %w", orderID, err)
 		return
 	}
@@ -135,6 +146,7 @@ func RejectOrder(orderID int64) {
 
 func OrderSetStatus(orderID int64, status string) {
 	if _, err := GetConn().Exec(`update orders set status = $1 where id = $2`, status, orderID); err != nil {
+		metrics.DBWriteErrorsCount.Inc()
 		zap.L().Sugar().Errorf("failed to set status '%s'for order %d: %w", status, orderID, err)
 		return
 	}

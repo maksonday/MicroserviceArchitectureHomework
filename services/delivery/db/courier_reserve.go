@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"delivery/metrics"
 	"delivery/types"
 	"errors"
 	"fmt"
@@ -50,6 +51,7 @@ func ProcessReserveCourier(courReserveID int64, action int8) error {
 				return retry.RetryableError(err)
 			}
 
+			metrics.DBReadErrorsCount.Inc()
 			return err
 		}
 
@@ -78,6 +80,7 @@ func ProcessReserveCourier(courReserveID int64, action int8) error {
 
 		return nil
 	}); err != nil {
+		metrics.ProcessCourReserveErrorsCount.Inc()
 		return err
 	}
 
@@ -94,6 +97,7 @@ func processReserveCourier(courID int64, mask int64, workDate string, action int
 
 	tx, err := GetConn().BeginTx(context.Background(), nil)
 	if err != nil {
+		metrics.StartTXErrorsCount.Inc()
 		return fmt.Errorf("begin tx for payment: %w", err)
 	}
 	defer tx.Rollback()
@@ -109,6 +113,7 @@ func processReserveCourier(courID int64, mask int64, workDate string, action int
 
 	// если обновилось — коммитим
 	if err := tx.Commit(); err != nil {
+		metrics.CommitTXErrorsCount.Inc()
 		return fmt.Errorf("commit tx: %w", err)
 	}
 
@@ -129,6 +134,8 @@ func ApproveReserveCourier(courReserveID int64) {
 		WHERE id = $1
         `, courReserveID); err != nil {
 		zap.L().Error("failed to approve cour_reserve", zap.Error(err))
+		metrics.DBWriteErrorsCount.Inc()
+		return
 	}
 
 	zap.L().Info("cour_reserve approved", zap.Int64("cour_reserve_id", courReserveID))
@@ -141,6 +148,8 @@ func RejectReserveCourier(courReserveID int64, reason string) {
 		WHERE id = $2
         `, reason, courReserveID); err != nil {
 		zap.L().Error("failed to reject cour_reserve", zap.Error(err))
+		metrics.DBWriteErrorsCount.Inc()
+		return
 	}
 
 	zap.L().Info("cour_reserve rejected", zap.Int64("cour_reserve_id", courReserveID), zap.String("reason", reason))
@@ -149,6 +158,7 @@ func RejectReserveCourier(courReserveID int64, reason string) {
 func GetAllCourReservations() ([]types.CourierReservation, error) {
 	rows, err := GetConnSlave().Query(`select id, order_id, courier_id, action, status, work_date, hour_mask, error, ctime, mtime from courier_reservation`)
 	if err != nil {
+		metrics.DBReadErrorsCount.Inc()
 		return nil, fmt.Errorf("get all cour reservation list: %w", err)
 	}
 	defer rows.Close()
@@ -200,6 +210,7 @@ func GetAllCourReservations() ([]types.CourierReservation, error) {
 func GetCourReservationsByOrderID(orderID int64) ([]types.CourierReservation, error) {
 	rows, err := GetConnSlave().Query(`select id, courier_id, action, status, work_date, hour_mask, error, ctime, mtime from courier_reservation where order_id = $1`, orderID)
 	if err != nil {
+		metrics.DBReadErrorsCount.Inc()
 		return nil, fmt.Errorf("get cour reservation list: %w", err)
 	}
 	defer rows.Close()
