@@ -6,4 +6,6 @@ RUN go build -o delivery .
 
 EXPOSE 8000:8000
 
+EXPOSE 8542:8542
+
 CMD ["./delivery"]

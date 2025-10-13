@@ -4,13 +4,16 @@ import (
 	"auth/config"
 	"auth/db"
 	"auth/logging"
+	"auth/metrics"
 	"auth/redis"
 	"auth/service"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 //	@title			Auth API
@@ -34,6 +37,10 @@ func main() {
 	}
 
 	redis.Init(config)
+
+	metrics.Init()
+	http.Handle("/metrics", promhttp.Handler())
+	go http.ListenAndServe(":8542", nil)
 
 	server := service.NewServer(config)
 

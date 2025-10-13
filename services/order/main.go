@@ -3,15 +3,18 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"order/config"
 	"order/db"
 	"order/logging"
+	"order/metrics"
 	"order/redis"
 	"order/service"
 	"os"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 //	@title			Order API
@@ -59,7 +62,10 @@ func main() {
 
 	go service.GetCourReserveProcessor().Run()
 
-	server := service.NewServer(config)
+	metrics.Init()
+	http.Handle("/metrics", promhttp.Handler())
+	go http.ListenAndServe(":8542", nil)
 
+	server := service.NewServer(config)
 	log.Fatalf("serve: %s", server.ListenAndServe(":"+config.ListenPort))
 }

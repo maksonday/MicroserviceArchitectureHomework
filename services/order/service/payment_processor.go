@@ -6,6 +6,7 @@ import (
 	"errors"
 	"order/config"
 	"order/db"
+	"order/metrics"
 	"os"
 	"os/signal"
 	"sync"
@@ -219,6 +220,9 @@ func (consumer *PaymentConsumer) ConsumeClaim(session sarama.ConsumerGroupSessio
 				zap.L().Error("failed to process payment message", zap.Error(err))
 			}
 			session.MarkMessage(message, "")
+
+			lag := claim.HighWaterMarkOffset() - message.Offset - 1
+			metrics.SetTopicPartitionLag(claim.Topic(), claim.Partition(), lag)
 		// Should return when `session.Context()` is done.
 		// If not, will raise `ErrRebalanceInProgress` or `read tcp <ip>:<port>: i/o timeout` when kafka rebalance. see:
 		// https://github.com/IBM/sarama/issues/1192

@@ -4,14 +4,17 @@ import (
 	"billing/config"
 	"billing/db"
 	"billing/logging"
+	"billing/metrics"
 	"billing/redis"
 	"billing/service"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 //	@title			Billing API
@@ -45,6 +48,10 @@ func main() {
 	go func() {
 		service.NewPaymentsProcessor(config).Run()
 	}()
+
+	metrics.Init()
+	http.Handle("/metrics", promhttp.Handler())
+	go http.ListenAndServe(":8542", nil)
 
 	server := service.NewServer(config)
 
