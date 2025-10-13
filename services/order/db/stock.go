@@ -28,7 +28,7 @@ func CreateStockChanges(orderID int64, items []types.Item) ([]int64, error) {
 
 	rows, err := GetConn().Query(fmt.Sprintf(query, strings.Join(values, ",")))
 	if err != nil {
-		metrics.DBWriteErrorsCount.Inc()
+		metrics.IncDBWriteErrorsCount()
 		return nil, fmt.Errorf("insert stock_changes: %w", err)
 	}
 	defer rows.Close()
@@ -63,7 +63,7 @@ func buildStockChanges(orderID int64, items []types.Item) ([]types.Item, error) 
 	rows, err := GetConnSlave().Query(fmt.Sprintf(`select id, item_id from stock where item_id in (%s)`, strings.Join(itemIDstr, ",")))
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
-			metrics.DBReadErrorsCount.Inc()
+			metrics.IncDBReadErrorsCount()
 		}
 		return nil, fmt.Errorf("get items from stock: %w", err)
 	}
@@ -105,7 +105,7 @@ func buildRevertChanges(stockChangeIDs []int64) ([]string, error) {
 	rows, err := GetConnSlave().Query(failedChanges)
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
-			metrics.DBReadErrorsCount.Inc()
+			metrics.IncDBReadErrorsCount()
 		}
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func RevertStockChanges(stockChangeIDs []int64) ([]int64, error) {
 	query := fmt.Sprintf(`insert into stock_changes(order_id, stock_id, quantity, action) values %s returning id`, strings.Join(values, ","))
 	rows, err := GetConn().Query(query)
 	if err != nil {
-		metrics.DBWriteErrorsCount.Inc()
+		metrics.IncDBWriteErrorsCount()
 		return nil, err
 	}
 	defer rows.Close()

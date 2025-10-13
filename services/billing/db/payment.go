@@ -53,7 +53,7 @@ func ProcessPayment(paymentID int64, action int8) error {
 				return retry.RetryableError(err)
 			}
 
-			metrics.DBReadErrorsCount.Inc()
+			metrics.IncDBReadErrorsCount()
 			return err
 		}
 
@@ -81,7 +81,7 @@ func ProcessPayment(paymentID int64, action int8) error {
 
 		return nil
 	}); err != nil {
-		metrics.ProcessPaymentErrorsCount.Inc()
+		metrics.IncProcessPaymentErrorsCount()
 		return err
 	}
 
@@ -93,7 +93,7 @@ func ProcessPayment(paymentID int64, action int8) error {
 func ApprovePayment(paymentID int64) {
 	if _, err := GetConn().Exec(`update payments set status = 'ok', mtime = NOW() where id = $1`, paymentID); err != nil {
 		zap.L().Error("failed to approve payment", zap.Error(err))
-		metrics.DBWriteErrorsCount.Inc()
+		metrics.IncDBWriteErrorsCount()
 		return
 	}
 
@@ -108,7 +108,7 @@ func processPayment(accountID int64, amount float64, action int8, mtime time.Tim
 
 	tx, err := GetConn().BeginTx(context.Background(), nil)
 	if err != nil {
-		metrics.StartTXErrorsCount.Inc()
+		metrics.IncStartTXErrorsCount()
 		return fmt.Errorf("begin tx for payment: %w", err)
 	}
 	defer tx.Rollback()
@@ -121,7 +121,7 @@ func processPayment(accountID int64, amount float64, action int8, mtime time.Tim
 
 	// если обновилось — коммитим
 	if err := tx.Commit(); err != nil {
-		metrics.CommitTXErrorsCount.Inc()
+		metrics.IncCommitTXErrorsCount()
 		return fmt.Errorf("commit tx: %w", err)
 	}
 
@@ -140,7 +140,7 @@ func RejectPayment(paymentID int64, reason string) {
 		`update payments set status = 'failed', error = $1, mtime = NOW() where id = $2 and status = 'pending'`,
 		reason, paymentID); err != nil {
 		zap.L().Error("failed to reject payment", zap.Error(err))
-		metrics.DBWriteErrorsCount.Inc()
+		metrics.IncDBWriteErrorsCount()
 		return
 	}
 
@@ -150,7 +150,7 @@ func RejectPayment(paymentID int64, reason string) {
 func GetAllPayments() ([]types.Payment, error) {
 	rows, err := GetConnSlave().Query(`select id, order_id, action, amount, status, ctime, mtime, error from payments`)
 	if err != nil {
-		metrics.DBReadErrorsCount.Inc()
+		metrics.IncDBReadErrorsCount()
 		return nil, fmt.Errorf("get all payments list: %w", err)
 	}
 	defer rows.Close()
@@ -192,7 +192,7 @@ func GetAllPayments() ([]types.Payment, error) {
 func GetPaymentsByOrderID(orderID int64) ([]types.Payment, error) {
 	rows, err := GetConnSlave().Query(`select id, action, amount, status, ctime, mtime, error from payments where order_id = $1`, orderID)
 	if err != nil {
-		metrics.DBReadErrorsCount.Inc()
+		metrics.IncDBReadErrorsCount()
 		return nil, fmt.Errorf("get payments list: %w", err)
 	}
 	defer rows.Close()

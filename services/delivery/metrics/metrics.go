@@ -6,13 +6,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const serviceName = "delivery"
+
 var (
 	ClientLag                     *prometheus.GaugeVec
-	DBReadErrorsCount             prometheus.Counter
-	DBWriteErrorsCount            prometheus.Counter
-	StartTXErrorsCount            prometheus.Counter
-	CommitTXErrorsCount           prometheus.Counter
-	ProcessCourReserveErrorsCount prometheus.Counter
+	DBReadErrorsCount             *prometheus.CounterVec
+	DBWriteErrorsCount            *prometheus.CounterVec
+	StartTXErrorsCount            *prometheus.CounterVec
+	CommitTXErrorsCount           *prometheus.CounterVec
+	ProcessCourReserveErrorsCount *prometheus.CounterVec
 )
 
 func Init() {
@@ -21,42 +23,66 @@ func Init() {
 			Name: "kafka_client_lag",
 			Help: "Lag of Kafka consumer per topic and partition",
 		},
-		[]string{"topic", "partition"},
+		[]string{"service", "topic", "partition"},
 	)
-	DBReadErrorsCount = prometheus.NewCounter(
+	DBReadErrorsCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "db_read_errors_total",
 			Help: "Total number of errors encountered while reading from the database",
 		},
+		[]string{"service"},
 	)
-	DBWriteErrorsCount = prometheus.NewCounter(
+	DBWriteErrorsCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "db_write_errors_total",
 			Help: "Total number of errors encountered while writing to the database",
 		},
+		[]string{"service"},
 	)
-	StartTXErrorsCount = prometheus.NewCounter(
+	StartTXErrorsCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "db_start_tx_errors_total",
 			Help: "Total number of errors encountered while starting a database transaction",
 		},
+		[]string{"service"},
 	)
-	CommitTXErrorsCount = prometheus.NewCounter(
+	CommitTXErrorsCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "db_commit_tx_errors_total",
 			Help: "Total number of errors encountered while committing a database transaction",
 		},
+		[]string{"service"},
 	)
-	ProcessCourReserveErrorsCount = prometheus.NewCounter(
+	ProcessCourReserveErrorsCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "process_courier_reserve_errors_total",
-			Help: "Total number of errors encountered while processing courier reserves",
+			Name: "process_cour_reserve_errors_total",
+			Help: "Total number of errors encountered while processing courier reservations",
 		},
+		[]string{"service"},
 	)
-
 	prometheus.MustRegister(ClientLag, DBWriteErrorsCount, DBReadErrorsCount, StartTXErrorsCount, CommitTXErrorsCount, ProcessCourReserveErrorsCount)
 }
 
 func SetTopicPartitionLag(topic string, partition int32, lag int64) {
-	ClientLag.WithLabelValues(topic, fmt.Sprintf("%d", partition)).Set(float64(lag))
+	ClientLag.WithLabelValues(serviceName, topic, fmt.Sprintf("%d", partition)).Set(float64(lag))
+}
+
+func IncDBReadErrorsCount() {
+	DBReadErrorsCount.WithLabelValues(serviceName).Inc()
+}
+
+func IncDBWriteErrorsCount() {
+	DBWriteErrorsCount.WithLabelValues(serviceName).Inc()
+}
+
+func IncStartTXErrorsCount() {
+	StartTXErrorsCount.WithLabelValues(serviceName).Inc()
+}
+
+func IncCommitTXErrorsCount() {
+	CommitTXErrorsCount.WithLabelValues(serviceName).Inc()
+}
+
+func IncProcessCourReserveErrorsCount() {
+	ProcessCourReserveErrorsCount.WithLabelValues(serviceName).Inc()
 }

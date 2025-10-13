@@ -10,7 +10,7 @@ import (
 func GetNotificationsByUserID(userID int64) ([]types.Notification, error) {
 	rows, err := GetConnSlave().Query(`select message, order_id from notifications where user_id = $1`, userID)
 	if err != nil {
-		metrics.DBReadErrorsCount.Inc()
+		metrics.IncDBReadErrorsCount()
 		return nil, err
 	}
 	defer rows.Close()
@@ -41,7 +41,7 @@ func GetNotificationsByUserID(userID int64) ([]types.Notification, error) {
 func CreateNotification(userID, orderID int64, msg string) {
 	if _, err := GetConn().Exec(`insert into notifications(user_id, order_id, message) values($1, $2, $3)`, userID, orderID, msg); err != nil {
 		zap.L().Error("failed to insert notification", zap.Error(err))
-		metrics.DBWriteErrorsCount.Inc()
+		metrics.IncDBWriteErrorsCount()
 		return
 	}
 
