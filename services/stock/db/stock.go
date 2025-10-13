@@ -49,7 +49,7 @@ func ProcessStockChange(stockChange *types.StockChange) error {
 func getStockId(itemId int64) (int64, error) {
 	var stockId int64
 	if err := GetConnSlave().QueryRow(`SELECT id from stock where item_id = $1`, itemId).Scan(&stockId); err != nil {
-		metrics.DBReadErrorsCount.Inc()
+		metrics.IncDBReadErrorsCount()
 		return 0, fmt.Errorf("failed to get stock id: %w", err)
 	}
 
@@ -93,7 +93,7 @@ func ProcessStockChangesAsync(stockChangeIDs []int64, action int8) error {
 				return retry.RetryableError(err)
 			}
 
-			metrics.DBReadErrorsCount.Inc()
+			metrics.IncDBReadErrorsCount()
 			return fmt.Errorf("get stock_changes: %w", err)
 		}
 		defer rows.Close()
@@ -141,7 +141,7 @@ func ProcessStockChangesAsync(stockChangeIDs []int64, action int8) error {
 
 		return nil
 	}); err != nil {
-		metrics.ProcessStockChangesErrorsCount.Inc()
+		metrics.IncProcessStockChangesErrorsCount()
 		return err
 	}
 
@@ -196,14 +196,14 @@ func processStockChanges(changes []types.StockChange, action int8) error {
 
 	tx, err := GetConn().BeginTx(context.Background(), nil)
 	if err != nil {
-		metrics.StartTXErrorsCount.Inc()
+		metrics.IncStartTXErrorsCount()
 		return fmt.Errorf("begin tx for stock_changes: %w", err)
 	}
 	defer tx.Rollback()
 
 	rows, err := tx.Query(query, args...)
 	if err != nil {
-		metrics.DBWriteErrorsCount.Inc()
+		metrics.IncDBWriteErrorsCount()
 		return fmt.Errorf("process stock_changes: %w", err)
 	}
 	defer rows.Close()
@@ -230,7 +230,7 @@ func processStockChanges(changes []types.StockChange, action int8) error {
 
 	// Если все обновились — коммитим
 	if err := tx.Commit(); err != nil {
-		metrics.CommitTXErrorsCount.Inc()
+		metrics.IncCommitTXErrorsCount()
 		return fmt.Errorf("commit tx: %w", err)
 	}
 
@@ -243,7 +243,7 @@ func ApproveStockChanges(stockChangeIDs []int64) {
 	changes := changesToStr(stockChangeIDs)
 	if _, err := GetConn().Exec(
 		fmt.Sprintf(`update stock_changes set status = 'ok', mtime = NOW() where id in (%s)`, strings.Join(changes, ","))); err != nil {
-		metrics.DBWriteErrorsCount.Inc()
+		metrics.IncDBWriteErrorsCount()
 		zap.L().Error("failed to approve stock remove", zap.Error(err))
 		return
 	}
@@ -256,7 +256,7 @@ func RejectStockChanges(stockChangeIDs []int64, reason string) {
 	query := fmt.Sprintf(
 		`update stock_changes set status = 'failed', error = $1, mtime = NOW() where id in (%s)`, strings.Join(changes, ","))
 	if _, err := GetConn().Exec(query, reason); err != nil {
-		metrics.DBWriteErrorsCount.Inc()
+		metrics.IncDBWriteErrorsCount()
 		zap.L().Error("failed to reject stock_changes", zap.Error(err), zap.String("query", query))
 		return
 	}
@@ -267,7 +267,7 @@ func RejectStockChanges(stockChangeIDs []int64, reason string) {
 func GetAllStockChanges() ([]types.StockChange, error) {
 	rows, err := GetConnSlave().Query(`select id, order_id, stock_id, action, status, quantity, error, mtime, ctime from stock_changes`)
 	if err != nil {
-		metrics.DBReadErrorsCount.Inc()
+		metrics.IncDBReadErrorsCount()
 		return nil, fmt.Errorf("get all stock changes: %w", err)
 	}
 	defer rows.Close()
@@ -309,7 +309,7 @@ func GetAllStockChanges() ([]types.StockChange, error) {
 func GetStockChangesByOrderID(orderID int64) ([]types.StockChange, error) {
 	rows, err := GetConnSlave().Query(`select id, stock_id, action, status, quantity, error, mtime, ctime from stock_changes where order_id = $1`, orderID)
 	if err != nil {
-		metrics.DBReadErrorsCount.Inc()
+		metrics.IncDBReadErrorsCount()
 		return nil, fmt.Errorf("get stock changes: %w", err)
 	}
 	defer rows.Close()

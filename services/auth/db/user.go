@@ -34,7 +34,7 @@ var (
 func GetUserCredentials(username string) (*types.User, error) {
 	rows, err := GetConnSlave().Query(`select id, email, password, roles from users where username = $1 LIMIT 1`, username)
 	if err != nil {
-		metrics.DBReadErrorsCount.Inc()
+		metrics.IncDBReadErrorsCount()
 		return nil, fmt.Errorf("get user: %w", err)
 	}
 	defer rows.Close()
@@ -101,7 +101,7 @@ func checkUserExists(username, email string) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}
-		metrics.DBReadErrorsCount.Inc()
+		metrics.IncDBReadErrorsCount()
 		return fmt.Errorf("check user existence: %w", err)
 	}
 
@@ -137,7 +137,7 @@ func CreateUser(user *types.User) (int64, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, fmt.Errorf("create user: no rows returned")
 		}
-		metrics.DBWriteErrorsCount.Inc()
+		metrics.IncDBWriteErrorsCount()
 		return 0, fmt.Errorf("create user: %w", err)
 	}
 
@@ -146,7 +146,7 @@ func CreateUser(user *types.User) (int64, error) {
 
 func DeleteUser(userId int64) {
 	if _, err := GetConn().Exec(`delete from users where id = $1`, userId); err != nil {
-		metrics.DBWriteErrorsCount.Inc()
+		metrics.IncDBWriteErrorsCount()
 		zap.L().Error("delete user", zap.Error(err))
 	}
 }
